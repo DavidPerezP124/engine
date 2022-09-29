@@ -16,11 +16,15 @@ static FlutterMetalTexture OnGetNextDrawable(FlutterEngine* engine,
                                              const FlutterFrameInfo* frameInfo) {
   CGSize size = CGSizeMake(frameInfo->size.width, frameInfo->size.height);
   FlutterMetalRenderer* metalRenderer = reinterpret_cast<FlutterMetalRenderer*>(engine.renderer);
+  NSLog(@"DebugPrint: OnGetNextDrawable");
+
   return [metalRenderer createTextureForSize:size];
 }
 
 static bool OnPresentDrawable(FlutterEngine* engine, const FlutterMetalTexture* texture) {
   FlutterMetalRenderer* metalRenderer = reinterpret_cast<FlutterMetalRenderer*>(engine.renderer);
+    NSLog(@"DebugPrint: OnPresentDrawable");
+
   return [metalRenderer present:texture->texture_id];
 }
 
@@ -30,6 +34,8 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
                                      size_t height,
                                      FlutterMetalExternalTexture* metalTexture) {
   FlutterMetalRenderer* metalRenderer = reinterpret_cast<FlutterMetalRenderer*>(engine.renderer);
+  NSLog(@"DebugPrint: OnAcquireExternalTexture");
+
   return [metalRenderer populateTextureWithIdentifier:textureIdentifier metalTexture:metalTexture];
 }
 
@@ -42,6 +48,8 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
 
   FlutterDarwinContextMetal* _darwinMetalContext;
 }
+
+int counter;
 
 - (instancetype)initWithFlutterEngine:(nonnull FlutterEngine*)flutterEngine {
   self = [super initWithDelegate:self engine:flutterEngine];
@@ -59,7 +67,7 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
       NSLog(@"Could not create Metal command queue.");
       return nil;
     }
-
+    NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
     _darwinMetalContext = [[FlutterDarwinContextMetal alloc] initWithMTLDevice:_device
                                                                   commandQueue:_commandQueue];
   }
@@ -83,6 +91,7 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
       .metal.external_texture_frame_callback =
           reinterpret_cast<FlutterMetalTextureFrameCallback>(OnAcquireExternalTexture),
   };
+  NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
   return config;
 }
 
@@ -96,6 +105,7 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
   embedderTexture.struct_size = sizeof(FlutterMetalTexture);
   embedderTexture.texture = (__bridge void*)texture;
   embedderTexture.texture_id = reinterpret_cast<int64_t>(texture);
+  NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
   return embedderTexture;
 }
 
@@ -104,6 +114,24 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
     return NO;
   }
   [_flutterView present];
+
+  NSImage *image = [_flutterView imageRepresentation];
+  NSData *imageData = image.TIFFRepresentation;
+  NSBitmapImageRep *imageRep = [NSBitmapImageRep imageRepWithData:imageData];
+  NSDictionary *imageProps = [NSDictionary dictionaryWithObject:[NSNumber numberWithFloat:1.0] forKey:NSImageCompressionFactor];
+  imageData = [imageRep representationUsingType:NSJPEGFileType properties:imageProps];
+  NSString *path = [NSString stringWithFormat:@"test%d.jpeg", counter];
+
+  [[NSFileManager defaultManager] createFileAtPath:path contents:nil attributes:nil];
+  
+  [imageData writeToFile:path atomically:YES];
+
+  if (counter == 11) {
+    counter = 0;
+  } else {
+    counter++;
+  }
+
   return YES;
 }
 
@@ -114,10 +142,14 @@ static bool OnAcquireExternalTexture(FlutterEngine* engine,
   id<FlutterMacOSExternalTexture> texture = [self getTextureWithID:textureID];
   FlutterExternalTextureMetal* metalTexture =
       reinterpret_cast<FlutterExternalTextureMetal*>(texture);
+          NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   return [metalTexture populateTexture:textureOut];
 }
 
 - (id<FlutterMacOSExternalTexture>)onRegisterTexture:(id<FlutterTexture>)texture {
+      NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   return [[FlutterExternalTextureMetal alloc] initWithFlutterTexture:texture
                                                   darwinMetalContext:_darwinMetalContext];
 }

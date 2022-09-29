@@ -15,7 +15,9 @@
 #include "vulkan_native_surface.h"
 #include "vulkan_surface.h"
 #include "vulkan_swapchain.h"
-
+#include <iostream>
+#include <fstream>
+using namespace std;
 namespace vulkan {
 
 VulkanWindow::VulkanWindow(fml::RefPtr<VulkanProcTable> proc_table,
@@ -190,6 +192,11 @@ sk_sp<SkSurface> VulkanWindow::AcquireSurface() {
 
     if (acquire_result == VulkanSwapchain::AcquireStatus::Success) {
       // Successfully acquired a surface from the swapchain. Nothing more to do.
+      ofstream myfile;
+  myfile.open ("example.txt");
+  myfile << surface;
+  myfile.close();
+  return 0;
       return surface;
     }
 

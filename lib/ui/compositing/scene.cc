@@ -17,6 +17,8 @@
 #include "third_party/tonic/dart_args.h"
 #include "third_party/tonic/dart_binding_macros.h"
 #include "third_party/tonic/dart_library_natives.h"
+#include <iostream>
+#include <fstream>
 
 namespace flutter {
 
@@ -106,6 +108,11 @@ void Scene::RasterizeToImage(uint32_t width,
       std::move(raster_task_runner), std::move(unref_queue));
   image->set_image(dl_image);
   image->AssociateWithDartWrapper(raw_image_handle);
+ 
+  std::ofstream myfile;
+  myfile.open("example.txt");
+  myfile << dl_image;
+  myfile.close();
 }
 
 std::shared_ptr<flutter::LayerTree> Scene::takeLayerTree() {

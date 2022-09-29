@@ -129,6 +129,20 @@
   return NSAccessibilityGroupRole;
 }
 
+- (NSImage *)imageRepresentation
+{
+  NSSize mySize = self.bounds.size;
+  NSSize imgSize = NSMakeSize( mySize.width, mySize.height );
+
+  NSBitmapImageRep *bir = [self bitmapImageRepForCachingDisplayInRect:[self bounds]];
+  [bir setSize:imgSize];
+  [self cacheDisplayInRect:[self bounds] toBitmapImageRep:bir];
+
+  NSImage* image = [[NSImage alloc]initWithSize:imgSize] ;
+  [image addRepresentation:bir];
+  return image;
+}
+
 - (NSString*)accessibilityLabel {
   // TODO(chunhtai): Provides a way to let developer customize the accessibility
   // label.

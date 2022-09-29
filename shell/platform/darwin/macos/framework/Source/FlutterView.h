@@ -62,4 +62,6 @@
  */
 - (void)shutdown;
 
+- (_Nullable id)imageRepresentation;
+
 @end

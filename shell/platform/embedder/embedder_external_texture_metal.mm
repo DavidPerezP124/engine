@@ -37,6 +37,8 @@ void EmbedderExternalTextureMetal::Paint(SkCanvas& canvas,
                                          GrDirectContext* context,
                                          const SkSamplingOptions& sampling,
                                          const SkPaint* paint) {
+  NSLog(@"DebugPrint: %@",  @"Paint");
+
   if (last_image_ == nullptr) {
     last_image_ = ResolveTexture(Id(), context, SkISize::Make(bounds.width(), bounds.height()));
   }
@@ -53,6 +55,7 @@ void EmbedderExternalTextureMetal::Paint(SkCanvas& canvas,
 sk_sp<SkImage> EmbedderExternalTextureMetal::ResolveTexture(int64_t texture_id,
                                                             GrDirectContext* context,
                                                             const SkISize& size) {
+    NSLog(@"DebugPrint: %@",  @"Paint");
   std::unique_ptr<FlutterMetalExternalTexture> texture =
       external_texture_callback_(texture_id, size.width(), size.height());
 
@@ -64,6 +67,7 @@ sk_sp<SkImage> EmbedderExternalTextureMetal::ResolveTexture(int64_t texture_id,
 
   switch (texture->pixel_format) {
     case FlutterMetalExternalTexturePixelFormat::kRGBA: {
+      NSLog(@"DebugPrint: %@", @"ResolveTexture");
       if (ValidNumTextures(1, texture->num_textures)) {
         id<MTLTexture> rgbaTex = (__bridge id<MTLTexture>)texture->textures[0];
         image = [FlutterDarwinExternalTextureSkImageWrapper wrapRGBATexture:rgbaTex
@@ -74,6 +78,8 @@ sk_sp<SkImage> EmbedderExternalTextureMetal::ResolveTexture(int64_t texture_id,
       break;
     }
     case FlutterMetalExternalTexturePixelFormat::kYUVA: {
+      NSLog(@"DebugPrint: %@", @"ResolveTexture");
+
       if (ValidNumTextures(2, texture->num_textures)) {
         id<MTLTexture> yTex = (__bridge id<MTLTexture>)texture->textures[0];
         id<MTLTexture> uvTex = (__bridge id<MTLTexture>)texture->textures[1];

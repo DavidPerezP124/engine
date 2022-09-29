@@ -878,6 +878,8 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
   // |RuntimeDelegate|
   std::string DefaultRouteName() override;
 
+  void HandleMessage(const std::string & message);
+
   // |RuntimeDelegate|
   void Render(std::shared_ptr<flutter::LayerTree> layer_tree) override;
 

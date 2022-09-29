@@ -1,7 +1,6 @@
 // Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #import "flutter/shell/platform/darwin/macos/framework/Headers/FlutterViewController.h"
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterViewController_Internal.h"
 
@@ -292,6 +291,7 @@ static void CommonInit(FlutterViewController* controller) {
   }
   controller->_mouseTrackingMode = FlutterMouseTrackingModeInKeyWindow;
   controller->_textInputPlugin = [[FlutterTextInputPlugin alloc] initWithViewController:controller];
+
   // macOS fires this message when changing IMEs.
   CFNotificationCenterRef cfCenter = CFNotificationCenterGetDistributedCenter();
   __weak FlutterViewController* weakSelf = controller;
@@ -504,6 +504,7 @@ static void CommonInit(FlutterViewController* controller) {
   FlutterPointerPhase phase = _mouseState.buttons == 0
                                   ? (_mouseState.flutter_state_is_down ? kUp : kHover)
                                   : (_mouseState.flutter_state_is_down ? kMove : kDown);
+
   [self dispatchMouseEvent:event phase:phase];
 }
 
@@ -530,6 +531,7 @@ static void CommonInit(FlutterViewController* controller) {
 }
 
 - (void)dispatchMouseEvent:(NSEvent*)event phase:(FlutterPointerPhase)phase {
+
   NSAssert(self.viewLoaded, @"View must be loaded before it handles the mouse event");
   // There are edge cases where the system will deliver enter out of order relative to other
   // events (e.g., drag out and back in, release, then click; mouseDown: will be called before

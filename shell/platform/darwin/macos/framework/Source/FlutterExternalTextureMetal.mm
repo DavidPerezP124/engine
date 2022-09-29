@@ -24,10 +24,14 @@
     _textureID = reinterpret_cast<int64_t>(_texture);
     _darwinMetalContext = context;
   }
+        NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   return self;
 }
 
 - (int64_t)textureID {
+        NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   return _textureID;
 }
 
@@ -38,6 +42,7 @@
   if (!pixelBuffer) {
     return NO;
   }
+        NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
 
   OSType pixel_format = CVPixelBufferGetPixelFormatType(pixelBuffer);
   if (pixel_format == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ||
@@ -65,6 +70,7 @@
       /*height=*/CVPixelBufferGetHeightOfPlane(pixelBuffer, 0u),
       /*planeIndex=*/0u,
       /*texture=*/&yCVMetalTexture);
+      NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
 
   if (yCVReturn != kCVReturnSuccess) {
     NSLog(@"Could not create Metal texture from pixel buffer: CVReturn %d", yCVReturn);
@@ -81,6 +87,7 @@
       /*height=*/CVPixelBufferGetHeightOfPlane(pixelBuffer, 1u),
       /*planeIndex=*/1u,
       /*texture=*/&uvCVMetalTextureRef);
+      NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
 
   if (uvCVReturn != kCVReturnSuccess) {
     CVBufferRelease(yCVMetalTexture);
@@ -106,6 +113,7 @@
                                 textureOut:(nonnull FlutterMetalExternalTexture*)textureOut {
   SkISize textureSize =
       SkISize::Make(CVPixelBufferGetWidth(pixelBuffer), CVPixelBufferGetHeight(pixelBuffer));
+      NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
 
   CVMetalTextureRef cvMetalTexture = nullptr;
   CVReturn cvReturn =

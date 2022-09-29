@@ -6,6 +6,7 @@
 
 #import <Metal/Metal.h>
 #import <OpenGL/gl.h>
+#import <AVFoundation/AVFoundation.h>
 
 #include <algorithm>
 
@@ -182,6 +183,13 @@ static const double kIdleDelay = 1.0;
   id<MTLTexture> _textures[kFlutterSurfaceManagerBufferCount];
 }
 
+
+AVAssetWriter *assetWriter;
+
+AVAssetWriterInput *assetWriterInput;
+
+AVAssetWriterInputPixelBufferAdaptor *assetWriterPixelBufferInput;
+
 - (nullable instancetype)initWithDevice:(nonnull id<MTLDevice>)device
                            commandQueue:(nonnull id<MTLCommandQueue>)commandQueue
                                   layer:(nonnull CALayer*)containingLayer {
@@ -197,6 +205,7 @@ static const double kIdleDelay = 1.0;
 - (FlutterRenderBackingStore*)renderBuffer {
   [self ensureBackBuffer];
   id<MTLTexture> texture = _textures[kFlutterSurfaceManagerBackBuffer];
+
   return [[FlutterMetalRenderBackingStore alloc] initWithTexture:texture];
 }
 

@@ -20,6 +20,7 @@ FLUTTER_ASSERT_ARC
 
 - (instancetype)initWithMTLDevice:(id<MTLDevice>)device
                      commandQueue:(id<MTLCommandQueue>)commandQueue {
+
   self = [super init];
   if (self != nil) {
     _device = device;
@@ -70,6 +71,8 @@ FLUTTER_ASSERT_ARC
       flutter::MakeDefaultContextOptions(flutter::ContextType::kRender, GrBackendApi::kMetal);
   id<MTLDevice> device = _device;
   id<MTLCommandQueue> commandQueue = _commandQueue;
+                                      NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   return [FlutterDarwinContextMetal createGrContext:device commandQueue:commandQueue];
 }
 
@@ -79,6 +82,8 @@ FLUTTER_ASSERT_ARC
       flutter::MakeDefaultContextOptions(flutter::ContextType::kRender, GrBackendApi::kMetal);
   // Skia expect arguments to `MakeMetal` transfer ownership of the reference in for release later
   // when the GrDirectContext is collected.
+  NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   return GrDirectContext::MakeMetal((__bridge_retained void*)device,
                                     (__bridge_retained void*)commandQueue, contextOptions);
 }
@@ -92,6 +97,8 @@ FLUTTER_ASSERT_ARC
 - (FlutterDarwinExternalTextureMetal*)
     createExternalTextureWithIdentifier:(int64_t)textureID
                                 texture:(NSObject<FlutterTexture>*)texture {
+  NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   return [[FlutterDarwinExternalTextureMetal alloc] initWithTextureCache:_textureCache
                                                                textureID:textureID
                                                                  texture:texture];

@@ -4,7 +4,8 @@
 
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
-
+#import <CoreMedia/CoreMedia.h>
+#import <AVFoundation/AVFoundation.h>
 #import "flutter/shell/platform/darwin/macos/framework/Source/FlutterRenderer.h"
 
 /**
@@ -23,6 +24,12 @@
  * Used to get the command buffers for the MTLDevice to render to.
  */
 @property(nonatomic, readonly, nonnull) id<MTLCommandQueue> commandQueue;
+
+@property(nonatomic, nonnull) AVAssetWriter *assetWriter;
+
+@property(nonatomic, nonnull) AVAssetWriterInput *assetWriterInput;
+
+@property(nonatomic, nonnull) AVAssetWriterInputPixelBufferAdaptor *assetWriterPixelBufferInput;
 
 /**
  * Creates a Metal texture for the given size.

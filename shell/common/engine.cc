@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "flutter/shell/common/engine.h"
+#include "flutter/shell/common/easywsclient.hpp"
 
 #include <cstring>
 #include <memory>
@@ -21,6 +22,16 @@
 #include "rapidjson/document.h"
 #include "third_party/dart/runtime/include/dart_tools_api.h"
 
+using easywsclient::WebSocket;
+static WebSocket::pointer ws = NULL;
+
+void handle_message(const std::string & message)
+{
+    printf(">>> %s\n", message.c_str());
+    if (message == "world") {
+      
+     }
+}
 namespace flutter {
 
 static constexpr char kAssetChannel[] = "flutter/assets";
@@ -57,7 +68,20 @@ Engine::Engine(
                                         io_manager)),
       task_runners_(std::move(task_runners)),
       weak_factory_(this) {
-  pointer_data_dispatcher_ = dispatcher_maker(*this);
+      pointer_data_dispatcher_ = dispatcher_maker(*this);
+    ws = WebSocket::from_url("ws://0.0.0.0:8126");
+    while (ws->getReadyState() != WebSocket::CLOSED) {
+        ws->poll();
+        ws->dispatch(handle_message);
+    }
+    delete ws;
+}
+
+
+
+void Engine::HandleMessage(const std::string & message)
+{
+    printf(">>> %s\n", message.c_str());
 }
 
 Engine::Engine(Delegate& delegate,

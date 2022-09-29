@@ -28,6 +28,8 @@ static void OnCVOpenGLTextureRelease(CVOpenGLTextureRef cvOpenGLTexture) {
   if (self) {
     _texture = texture;
   }
+          NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   return self;
 }
 
@@ -38,6 +40,7 @@ static void OnCVOpenGLTextureRelease(CVOpenGLTextureRef cvOpenGLTexture) {
 - (BOOL)populateTexture:(FlutterOpenGLTexture*)openGLTexture {
   // Copy the pixel buffer from the FlutterTexture instance implemented on the user side.
   CVPixelBufferRef pixelBuffer = [_texture copyPixelBuffer];
+        NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
 
   if (!pixelBuffer) {
     return NO;

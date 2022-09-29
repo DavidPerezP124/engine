@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "flutter/common/graphics/texture.h"
+#include <iostream>
+#include <fstream>
+using namespace std;
 
 namespace flutter {
 
@@ -72,7 +75,8 @@ void TextureRegistry::OnGrContextDestroyed() {
 
 std::shared_ptr<Texture> TextureRegistry::GetTexture(int64_t id) {
   auto it = mapping_.find(id);
-  return it != mapping_.end() ? it->second : nullptr;
+  auto texture = it != mapping_.end() ? it->second : nullptr;
+  return texture;
 }
 
 }  // namespace flutter

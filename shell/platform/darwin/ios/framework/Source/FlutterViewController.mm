@@ -974,6 +974,7 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
 
   for (UITouch* touch in touches) {
     CGPoint windowCoordinates = [touch locationInView:self.view];
+    NSLog(@"DebugPrint: %@ %@s", NSStringFromSelector(_cmd), touch);
 
     flutter::PointerData pointer_data;
     pointer_data.Clear();
@@ -1823,6 +1824,8 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
   pointer_data.time_stamp = [[NSProcessInfo processInfo] systemUptime] * kMicrosecondsPerSecond;
   pointer_data.physical_x = _mouseState.location.x;
   pointer_data.physical_y = _mouseState.location.y;
+  NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   return pointer_data;
 }
 
@@ -1836,6 +1839,7 @@ static flutter::PointerData::DeviceKind DeviceKindFromTouchType(UITouch* touch) 
   CGPoint location = [recognizer locationInView:self.view];
   CGFloat scale = [UIScreen mainScreen].scale;
   _mouseState.location = {location.x * scale, location.y * scale};
+  NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
 
   flutter::PointerData pointer_data = [self generatePointerDataAtLastMouseLocation];
   pointer_data.device = reinterpret_cast<int64_t>(recognizer);

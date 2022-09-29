@@ -30,6 +30,8 @@
     // This key is required to generate SKPicture with CVPixelBufferRef in metal.
     (NSString*)kCVPixelBufferMetalCompatibilityKey : @YES
   };
+        NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+
   CVPixelBufferRef pxbuffer = NULL;
   CVReturn status = CVPixelBufferCreate(kCFAllocatorDefault, 200, 200, kCVPixelFormatType_32BGRA,
                                         (__bridge CFDictionaryRef)options, &pxbuffer);
