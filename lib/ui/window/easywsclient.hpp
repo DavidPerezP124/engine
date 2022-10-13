@@ -108,10 +108,15 @@ public:
 class Ws {
   
     std::thread runner;
+    std::thread messageThread;
+
     non_blocking::Queue<std::string> outgoing;
     non_blocking::Queue<std::string> incoming;
     std::atomic<bool> running { true };
 public:
+
+
+
     class WsDelegate {
       public:
         virtual void HandleMessage(const std::string& message) = 0;
@@ -120,6 +125,7 @@ public:
 
     void send(std::string const &s) { outgoing.push(s); }
     bool recv(std::string &s) { return incoming.pop(s); }
+    void listeningThread(std::thread &t) {  }
 
     Ws(std::string url) {
         using easywsclient::WebSocket;
@@ -134,11 +140,9 @@ public:
                     ws->send(data);
                 ws->poll(3);
                 ws->dispatch([&](const std::string & message) {
-                    fprintf(stderr, ">>> %p \n", std::__to_address(this));
-                    if (delegate) {
-                      delegate->HandleMessage(message);
-                    }
-                    //incoming.push(message);
+                    
+                    delegate->HandleMessage(message);
+                    incoming.push(message);
                 });
             }
             fprintf(stderr, ">>> %s \n", "Closing ws");

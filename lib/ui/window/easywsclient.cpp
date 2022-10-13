@@ -79,7 +79,7 @@ typedef int socket_t;
 using easywsclient::BytesCallback_Imp;
 using easywsclient::Callback_Imp;
 
-namespace {  // private module-only namespace
+namespace flutter {  // private module-only namespace
 
 socket_t hostname_connect(const std::string& hostname, int port) {
   struct addrinfo hints;

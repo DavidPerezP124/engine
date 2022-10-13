@@ -524,6 +524,8 @@ static void CommonInit(FlutterViewController* controller) {
                event.momentumPhase == NSEventPhaseCancelled) {
       _mouseState.system_scroll_inertia_active = false;
     }
+    NSAssert(event.momentumPhase == NSEventPhaseNone,
+             @"Received gesture event with unexpected phase");
     // Skip momentum update events, the framework will generate scroll momentum.
     NSAssert(event.momentumPhase != NSEventPhaseNone,
              @"Received gesture event with unexpected phase");

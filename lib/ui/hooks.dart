@@ -89,7 +89,6 @@ void _dispatchPlatformMessage(String name, ByteData? data, int responseId) {
 
 @pragma('vm:entry-point')
 void _dispatchPointerDataPacket(ByteData packet) {
-  print("DispatchPointerDataPacket");
   PlatformDispatcher.instance._dispatchPointerDataPacket(packet);
 }
 

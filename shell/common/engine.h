@@ -33,6 +33,7 @@
 #include "flutter/shell/common/run_configuration.h"
 #include "flutter/shell/common/shell_io_manager.h"
 #include "third_party/skia/include/core/SkPicture.h"
+#include "easywsclient.hpp"
 
 namespace flutter {
 
@@ -72,11 +73,15 @@ namespace flutter {
 ///           name and it does happen to be one of the older classes in the
 ///           repository.
 ///
-class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
+class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate , Ws::WsDelegate {
  public:
+ 
+   uint64_t next_pointer_flow_id_ = 0;
+
   //----------------------------------------------------------------------------
   /// @brief      Indicates the result of the call to `Engine::Run`.
   ///
+  
   enum class RunStatus {
     //--------------------------------------------------------------------------
     /// The call to |Engine::Run| was successful and the root isolate is in the
@@ -878,7 +883,7 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate {
   // |RuntimeDelegate|
   std::string DefaultRouteName() override;
 
-  void HandleMessage(const std::string & message);
+  void HandleMessage(const std::string & message) override;
 
   // |RuntimeDelegate|
   void Render(std::shared_ptr<flutter::LayerTree> layer_tree) override;

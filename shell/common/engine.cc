@@ -5,7 +5,10 @@
 #include "flutter/shell/common/engine.h"
 #include "flutter/shell/common/easywsclient.hpp"
 
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -16,6 +19,7 @@
 #include "flutter/fml/trace_event.h"
 #include "flutter/lib/snapshot/snapshot.h"
 #include "flutter/lib/ui/text/font_collection.h"
+#include "flutter/lib/ui/window/pointer_data.h"
 #include "flutter/shell/common/animator.h"
 #include "flutter/shell/common/platform_view.h"
 #include "flutter/shell/common/shell.h"
@@ -23,15 +27,8 @@
 #include "third_party/dart/runtime/include/dart_tools_api.h"
 
 using easywsclient::WebSocket;
-static WebSocket::pointer ws = NULL;
+Ws ws("ws://localhost:8126");
 
-void handle_message(const std::string & message)
-{
-    printf(">>> %s\n", message.c_str());
-    if (message == "world") {
-      
-     }
-}
 namespace flutter {
 
 static constexpr char kAssetChannel[] = "flutter/assets";
@@ -68,20 +65,8 @@ Engine::Engine(
                                         io_manager)),
       task_runners_(std::move(task_runners)),
       weak_factory_(this) {
-      pointer_data_dispatcher_ = dispatcher_maker(*this);
-    ws = WebSocket::from_url("ws://0.0.0.0:8126");
-    while (ws->getReadyState() != WebSocket::CLOSED) {
-        ws->poll();
-        ws->dispatch(handle_message);
-    }
-    delete ws;
-}
-
-
-
-void Engine::HandleMessage(const std::string & message)
-{
-    printf(">>> %s\n", message.c_str());
+  pointer_data_dispatcher_ = dispatcher_maker(*this);
+  ws.delegate = this;
 }
 
 Engine::Engine(Delegate& delegate,
@@ -159,6 +144,7 @@ std::unique_ptr<Engine> Engine::Spawn(
       /*image_generator_registry=*/result->GetImageGeneratorRegistry(),
       /*snapshot_delegate=*/snapshot_delegate);
   result->initial_route_ = initial_route;
+
   return result;
 }
 
@@ -183,6 +169,66 @@ fml::WeakPtr<ImageDecoder> Engine::GetImageDecoderWeakPtr() {
 
 fml::WeakPtr<ImageGeneratorRegistry> Engine::GetImageGeneratorRegistry() {
   return image_generator_registry_.GetWeakPtr();
+}
+
+void Engine::HandleMessage(const std::string& message) {
+  fprintf(stderr, ">>> %s\n", message.c_str());
+  rapidjson::Document document;
+  document.Parse(message.c_str());
+  if (document.HasParseError() || !document.IsObject()) {
+    fprintf(stderr, ">>> %u\n", document.GetParseError());
+    return;
+  }
+  auto x = document["x"].GetDouble();
+  auto y = document["y"].GetDouble();
+
+  fprintf(stderr, ">>> x: %f y: %f\n", x,y );
+
+
+PointerData data;
+data.change = PointerData::Change::kHover;
+data.time_stamp = 0;
+data.kind = PointerData::DeviceKind::kMouse;
+data.signal_kind = PointerData::SignalKind::kNone;
+data.device = 0;
+data.pointer_identifier = 0;
+data.physical_x = x;
+data.physical_y = y;
+data.physical_delta_x = 0.0;
+data.physical_delta_y = 0.0;
+data.buttons = 0;
+data.obscured = 0;
+data.synthesized = 0;
+data.pressure = 1;
+data.pressure_min = 0.0;
+data.pressure_max = 0.0;
+data.distance = 0.0;
+data.distance_max = 0.0;
+data.size = 1;
+data.radius_major = 1;
+data.radius_minor = 0.0;
+data.radius_min = 0.0;
+data.radius_max = 0.0;
+data.orientation = 0.0;
+data.tilt = 0.0;
+data.platformData = 0;
+data.scroll_delta_x = 0.0;
+data.scroll_delta_y = 0.0;
+auto flow_id = next_pointer_flow_id_ + 1;
+auto packet = std::make_unique<PointerDataPacket>(flow_id);
+packet.get()->SetPointerData(1, data);
+
+if (pointer_data_dispatcher_) {
+  // pointer_data_dispatcher_->DispatchPacket(std::move(packet), 2);
+  fml::RefPtr<fml::TaskRunner> ui_runner = task_runners_.GetUITaskRunner();
+
+  ui_runner.get()->PostTask(fml::MakeCopyable(
+      [engine = this, packet = std::move(packet), flow_id = flow_id]() mutable {
+        if (engine) {
+          engine->DispatchPointerDataPacket(std::move(packet), flow_id);
+        }
+      }));
+}
 }
 
 bool Engine::UpdateAssetManager(
@@ -435,6 +481,9 @@ void Engine::DispatchPointerDataPacket(
     uint64_t trace_flow_id) {
   TRACE_EVENT0("flutter", "Engine::DispatchPointerDataPacket");
   TRACE_FLOW_STEP("flutter", "PointerEvent", trace_flow_id);
+  fprintf(stderr, "packet size %lu, packet flow id: %llu\n",
+          sizeof(packet->data().begin()), trace_flow_id);
+  next_pointer_flow_id_ = trace_flow_id;
   pointer_data_dispatcher_->DispatchPacket(std::move(packet), trace_flow_id);
 }
 
@@ -516,6 +565,8 @@ void Engine::DoDispatchPacket(std::unique_ptr<PointerDataPacket> packet,
                               uint64_t trace_flow_id) {
   animator_->EnqueueTraceFlowId(trace_flow_id);
   if (runtime_controller_) {
+    fprintf(stderr, "packet size %lu, packet flow id: %llu\n",
+            sizeof(packet->data().begin()), trace_flow_id);
     runtime_controller_->DispatchPointerDataPacket(*packet);
   }
 }
