@@ -7,6 +7,7 @@
 
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -171,6 +172,28 @@ fml::WeakPtr<ImageGeneratorRegistry> Engine::GetImageGeneratorRegistry() {
   return image_generator_registry_.GetWeakPtr();
 }
 
+PointerData::Change GetTypeFromJSON(const std::string& change) {
+  if (change == "add") {
+    return PointerData::Change::kAdd;
+  }
+  if (change == "hover") {
+    return PointerData::Change::kHover;
+  }
+  if (change == "up") {
+    return PointerData::Change::kUp;
+  }
+  if (change == "down") {
+    return PointerData::Change::kDown;
+  }
+  if (change == "cancel") {
+    return PointerData::Change::kCancel;
+  }
+  if (change == "remove") {
+    return PointerData::Change::kRemove;
+  }
+  return PointerData::Change::kHover;
+}
+
 void Engine::HandleMessage(const std::string& message) {
   fprintf(stderr, ">>> %s\n", message.c_str());
   rapidjson::Document document;
@@ -181,54 +204,68 @@ void Engine::HandleMessage(const std::string& message) {
   }
   auto x = document["x"].GetDouble();
   auto y = document["y"].GetDouble();
+  auto change = PointerData::Change::kHover;
+  if (document.HasMember("type")) {
+    change = GetTypeFromJSON(document["type"].GetString());
+  }
+  fprintf(stderr, ">>> x: %f y: %f\n", x, y);
 
-  fprintf(stderr, ">>> x: %f y: %f\n", x,y );
+  PointerData data;
+  data.change = change;
+  data.time_stamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        std::chrono::system_clock::now().time_since_epoch())
+                        .count();
+  data.kind = PointerData::DeviceKind::kMouse;
+  data.signal_kind = PointerData::SignalKind::kNone;
+  data.device = 0;
+  uint64_t id = 0;
+  if (change == PointerData::Change::kDown) {
+    id = next_pointer_id_;
+  } else if (change == PointerData::Change::kUp) {
+    id = next_pointer_id_;
+    next_pointer_id_++;
+  }
+  data.pointer_identifier = id;
+  data.physical_x = x;
+  data.physical_y = y;
+  data.physical_delta_x = 0.0;
+  data.physical_delta_y = 0.0;
+  data.buttons = change == PointerData::Change::kDown
+                     ? flutter::PointerButtonMouse::kPointerButtonMousePrimary
+                     : 0;
+  data.obscured = 0;
+  data.synthesized = 0;
+  data.pressure = 0;
+  data.pressure_min = 0.0;
+  data.pressure_max = 0.0;
+  data.distance = 0.0;
+  data.distance_max = 0.0;
+  data.size = 0;
+  data.radius_major = 0;
+  data.radius_minor = 0;
+  data.radius_min = 0.0;
+  data.radius_max = 0.0;
+  data.orientation = 0.0;
+  data.tilt = 0.0;
+  data.platformData = 0;
+  data.scroll_delta_x = 0.0;
+  data.scroll_delta_y = 0.0;
+  auto flow_id = next_pointer_flow_id_ + 1;
+  auto packet = std::make_unique<PointerDataPacket>(flow_id);
+  packet.get()->SetPointerData(1, data);
 
+  if (pointer_data_dispatcher_) {
+    // pointer_data_dispatcher_->DispatchPacket(std::move(packet), 2);
+    fml::RefPtr<fml::TaskRunner> ui_runner = task_runners_.GetUITaskRunner();
 
-PointerData data;
-data.change = PointerData::Change::kHover;
-data.time_stamp = 0;
-data.kind = PointerData::DeviceKind::kMouse;
-data.signal_kind = PointerData::SignalKind::kNone;
-data.device = 0;
-data.pointer_identifier = 0;
-data.physical_x = x;
-data.physical_y = y;
-data.physical_delta_x = 0.0;
-data.physical_delta_y = 0.0;
-data.buttons = 0;
-data.obscured = 0;
-data.synthesized = 0;
-data.pressure = 1;
-data.pressure_min = 0.0;
-data.pressure_max = 0.0;
-data.distance = 0.0;
-data.distance_max = 0.0;
-data.size = 1;
-data.radius_major = 1;
-data.radius_minor = 0.0;
-data.radius_min = 0.0;
-data.radius_max = 0.0;
-data.orientation = 0.0;
-data.tilt = 0.0;
-data.platformData = 0;
-data.scroll_delta_x = 0.0;
-data.scroll_delta_y = 0.0;
-auto flow_id = next_pointer_flow_id_ + 1;
-auto packet = std::make_unique<PointerDataPacket>(flow_id);
-packet.get()->SetPointerData(1, data);
-
-if (pointer_data_dispatcher_) {
-  // pointer_data_dispatcher_->DispatchPacket(std::move(packet), 2);
-  fml::RefPtr<fml::TaskRunner> ui_runner = task_runners_.GetUITaskRunner();
-
-  ui_runner.get()->PostTask(fml::MakeCopyable(
-      [engine = this, packet = std::move(packet), flow_id = flow_id]() mutable {
-        if (engine) {
-          engine->DispatchPointerDataPacket(std::move(packet), flow_id);
-        }
-      }));
-}
+    ui_runner.get()->PostTask(
+        fml::MakeCopyable([engine = this, packet = std::move(packet),
+                           flow_id = flow_id]() mutable {
+          if (engine) {
+            engine->DispatchPointerDataPacket(std::move(packet), flow_id);
+          }
+        }));
+  }
 }
 
 bool Engine::UpdateAssetManager(
@@ -480,9 +517,6 @@ void Engine::DispatchPointerDataPacket(
     std::unique_ptr<PointerDataPacket> packet,
     uint64_t trace_flow_id) {
   TRACE_EVENT0("flutter", "Engine::DispatchPointerDataPacket");
-  TRACE_FLOW_STEP("flutter", "PointerEvent", trace_flow_id);
-  fprintf(stderr, "packet size %lu, packet flow id: %llu\n",
-          sizeof(packet->data().begin()), trace_flow_id);
   next_pointer_flow_id_ = trace_flow_id;
   pointer_data_dispatcher_->DispatchPacket(std::move(packet), trace_flow_id);
 }
@@ -565,8 +599,6 @@ void Engine::DoDispatchPacket(std::unique_ptr<PointerDataPacket> packet,
                               uint64_t trace_flow_id) {
   animator_->EnqueueTraceFlowId(trace_flow_id);
   if (runtime_controller_) {
-    fprintf(stderr, "packet size %lu, packet flow id: %llu\n",
-            sizeof(packet->data().begin()), trace_flow_id);
     runtime_controller_->DispatchPointerDataPacket(*packet);
   }
 }

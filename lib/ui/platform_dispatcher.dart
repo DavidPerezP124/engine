@@ -343,6 +343,8 @@ class PlatformDispatcher {
 
   // Called from the engine, via hooks.dart
   void _dispatchPointerDataPacket(ByteData packet) {
+    print(
+        "pointer packet $onPointerDataPacket $_onPointerDataPacketZone ${_unpackPointerDataPacket(packet)}");
     if (onPointerDataPacket != null) {
       _invoke1<PointerDataPacket>(
         onPointerDataPacket,
@@ -412,6 +414,7 @@ class PlatformDispatcher {
       ));
       assert(offset == (i + 1) * _kPointerDataFieldCount);
     }
+    developer.log('packet ${data.length}', name: 'engine level');
     return PointerDataPacket(data: data);
   }
 

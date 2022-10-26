@@ -95,6 +95,8 @@ int counter;
   return config;
 }
 
+
+
 #pragma mark - Embedder callback implementations.
 
 - (FlutterMetalTexture)createTextureForSize:(CGSize)size {
@@ -114,7 +116,16 @@ int counter;
     return NO;
   }
   [_flutterView present];
+  FlutterMetalRenderer* __weak weakSelf = self;
 
+  dispatch_async(dispatch_get_main_queue(), ^{
+      [weakSelf drawImage];
+  });
+
+  return YES;
+}
+
+- (void) drawImage {
   NSImage *image = [_flutterView imageRepresentation];
   NSData *imageData = image.TIFFRepresentation;
   NSBitmapImageRep *imageRep = [NSBitmapImageRep imageRepWithData:imageData];
@@ -131,8 +142,6 @@ int counter;
   } else {
     counter++;
   }
-
-  return YES;
 }
 
 #pragma mark - FlutterTextureRegistrar methods.

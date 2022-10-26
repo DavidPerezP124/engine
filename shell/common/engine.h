@@ -8,6 +8,8 @@
 #include <memory>
 #include <string>
 
+#include "flutter/lib/ui/window/pointer_data.h"
+
 #include "flutter/assets/asset_manager.h"
 #include "flutter/common/task_runners.h"
 #include "flutter/fml/macros.h"
@@ -76,7 +78,9 @@ namespace flutter {
 class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate , Ws::WsDelegate {
  public:
  
-   uint64_t next_pointer_flow_id_ = 0;
+   uint64_t next_pointer_flow_id_ = 1;
+   uint64_t next_pointer_id_ = 0;
+   PointerData::Change lastchange = PointerData::Change::kHover;
 
   //----------------------------------------------------------------------------
   /// @brief      Indicates the result of the call to `Engine::Run`.

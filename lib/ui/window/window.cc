@@ -25,14 +25,13 @@ void Window::DispatchPointerDataPacket(const PointerDataPacket& packet) {
     return;
   }
   tonic::DartState::Scope scope(dart_state);
-  fprintf(stderr, "window packet size %lu\n", sizeof(packet.data().begin()));
 
   const std::vector<uint8_t>& buffer = packet.data();
-  fprintf(stderr, "window buffer size %lu, data %s\n", buffer.size(), buffer.data());
 
   Dart_Handle data_handle =
       tonic::DartByteData::Create(buffer.data(), buffer.size());
   if (Dart_IsError(data_handle)) {
+      fprintf(stderr, "error handle ");
     return;
   }
   tonic::CheckAndHandleError(tonic::DartInvokeField(
