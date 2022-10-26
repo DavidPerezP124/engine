@@ -60,8 +60,6 @@ template("dart_embedder_resources") {
 
 source_set("common") {
   sources = [
-    "easywsclient.hpp",
-    "easywsclient.cpp",
     "animator.cc",
     "animator.h",
     "canvas_spy.cc",
@@ -72,6 +70,8 @@ source_set("common") {
     "display.h",
     "display_manager.cc",
     "display_manager.h",
+    "easywsclient.hpp",
+    "easywsclient.cpp",
     "engine.cc",
     "engine.h",
     "pipeline.cc",
