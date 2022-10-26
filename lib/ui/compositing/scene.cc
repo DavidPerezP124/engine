@@ -108,7 +108,7 @@ void Scene::RasterizeToImage(uint32_t width,
       std::move(raster_task_runner), std::move(unref_queue));
   image->set_image(dl_image);
   image->AssociateWithDartWrapper(raw_image_handle);
- 
+
   std::ofstream myfile;
   myfile.open("example.txt");
   myfile << dl_image;

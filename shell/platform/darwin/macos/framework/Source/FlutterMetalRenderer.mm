@@ -134,7 +134,6 @@ int counter;
   NSString *path = [NSString stringWithFormat:@"test%d.jpeg", counter];
 
   [[NSFileManager defaultManager] createFileAtPath:path contents:nil attributes:nil];
-  
   [imageData writeToFile:path atomically:YES];
 
   if (counter == 11) {

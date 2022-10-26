@@ -77,7 +77,7 @@ namespace flutter {
 ///
 class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate , Ws::WsDelegate {
  public:
- 
+
    uint64_t next_pointer_flow_id_ = 1;
    uint64_t next_pointer_id_ = 0;
    PointerData::Change lastchange = PointerData::Change::kHover;
@@ -85,7 +85,7 @@ class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate , W
   //----------------------------------------------------------------------------
   /// @brief      Indicates the result of the call to `Engine::Run`.
   ///
-  
+
   enum class RunStatus {
     //--------------------------------------------------------------------------
     /// The call to |Engine::Run| was successful and the root isolate is in the
