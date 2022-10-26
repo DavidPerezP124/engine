@@ -173,7 +173,7 @@ source_set("flutter_framework_source") {
 
   frameworks = [
     "AudioToolbox.framework",
-    "AVFoundation.framework"
+    "AVFoundation.framework",
     "CoreMedia.framework",
     "CoreVideo.framework",
     "QuartzCore.framework",
