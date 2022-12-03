@@ -533,7 +533,6 @@ static void CommonInit(FlutterViewController* controller) {
 }
 
 - (void)dispatchMouseEvent:(NSEvent*)event phase:(FlutterPointerPhase)phase {
-
   NSAssert(self.viewLoaded, @"View must be loaded before it handles the mouse event");
   // There are edge cases where the system will deliver enter out of order relative to other
   // events (e.g., drag out and back in, release, then click; mouseDown: will be called before

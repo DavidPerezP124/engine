@@ -129,8 +129,7 @@
   return NSAccessibilityGroupRole;
 }
 
-- (NSImage *)imageRepresentation
-{
+- (NSImage *)imageRepresentation {
   NSSize mySize = self.bounds.size;
   NSSize imgSize = NSMakeSize( mySize.width, mySize.height );
 

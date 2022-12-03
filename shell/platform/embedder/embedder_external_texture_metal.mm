@@ -37,8 +37,6 @@ void EmbedderExternalTextureMetal::Paint(SkCanvas& canvas,
                                          GrDirectContext* context,
                                          const SkSamplingOptions& sampling,
                                          const SkPaint* paint) {
-  NSLog(@"DebugPrint: %@",  @"Paint");
-
   if (last_image_ == nullptr) {
     last_image_ = ResolveTexture(Id(), context, SkISize::Make(bounds.width(), bounds.height()));
   }
