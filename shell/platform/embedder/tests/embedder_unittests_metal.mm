@@ -53,7 +53,7 @@ TEST_F(EmbedderTest, CanRenderGradientWithMetal) {
   // ASSERT_TRUE(ImageMatchesFixture("gradient_metal.png", rendered_scene));
 }
 
-static sk_sp<SkSurface> GetSurfaceFromTexture(sk_sp<GrDirectContext> skia_context,
+static sk_sp<SkSurface> GetSurfaceFromTexture(const sk_sp<GrDirectContext>& skia_context,
                                               SkISize texture_size,
                                               void* texture) {
   GrMtlTextureInfo info;
@@ -225,6 +225,49 @@ TEST_F(EmbedderTest, CanRenderSceneWithoutCustomCompositorMetal) {
   ASSERT_EQ(FlutterEngineSendWindowMetricsEvent(engine.get(), &event), kSuccess);
 
   ASSERT_TRUE(ImageMatchesFixture("scene_without_custom_compositor.png", rendered_scene));
+}
+
+TEST_F(EmbedderTest, TextureDestructionCallbackCalledWithoutCustomCompositorMetal) {
+  EmbedderTestContextMetal& context = reinterpret_cast<EmbedderTestContextMetal&>(
+      GetEmbedderContext(EmbedderTestContextType::kMetalContext));
+  EmbedderConfigBuilder builder(context);
+  builder.SetMetalRendererConfig(SkISize::Make(800, 600));
+  builder.SetDartEntrypoint("texture_destruction_callback_called_without_custom_compositor");
+
+  struct CollectContext {
+    int collect_count = 0;
+    fml::AutoResetWaitableEvent latch;
+  };
+
+  auto collect_context = std::make_unique<CollectContext>();
+  context.SetNextDrawableCallback([&context, &collect_context](const FlutterFrameInfo* frame_info) {
+    auto texture_info = context.GetTextureInfo();
+    FlutterMetalTexture texture;
+    texture.struct_size = sizeof(FlutterMetalTexture);
+    texture.texture_id = texture_info.texture_id;
+    texture.texture = reinterpret_cast<FlutterMetalTextureHandle>(texture_info.texture);
+    texture.user_data = collect_context.get();
+    texture.destruction_callback = [](void* user_data) {
+      CollectContext* callback_collect_context = reinterpret_cast<CollectContext*>(user_data);
+      callback_collect_context->collect_count++;
+      callback_collect_context->latch.Signal();
+    };
+    return texture;
+  });
+
+  auto engine = builder.LaunchEngine();
+
+  // Send a window metrics events so frames may be scheduled.
+  FlutterWindowMetricsEvent event = {};
+  event.struct_size = sizeof(event);
+  event.width = 800;
+  event.height = 600;
+  event.pixel_ratio = 1.0;
+  ASSERT_EQ(FlutterEngineSendWindowMetricsEvent(engine.get(), &event), kSuccess);
+  ASSERT_TRUE(engine.is_valid());
+
+  collect_context->latch.Wait();
+  EXPECT_EQ(collect_context->collect_count, 1);
 }
 
 TEST_F(EmbedderTest, CompositorMustBeAbleToRenderKnownSceneMetal) {
@@ -465,20 +508,24 @@ TEST_F(EmbedderTest, ExternalTextureMetalRefreshedTooOften) {
   auto canvas = skia_surface->getCanvas();
 
   Texture* texture_ = &texture;
-  texture_->Paint(*canvas, SkRect::MakeXYWH(0, 0, 100, 100), false, surface->GetGrContext().get(),
+  Texture::PaintContext ctx{
+      .canvas = canvas,
+      .gr_context = surface->GetGrContext().get(),
+  };
+  texture_->Paint(ctx, SkRect::MakeXYWH(0, 0, 100, 100), false,
                   SkSamplingOptions(SkFilterMode::kLinear));
 
   EXPECT_TRUE(resolve_called);
   resolve_called = false;
 
-  texture_->Paint(*canvas, SkRect::MakeXYWH(0, 0, 100, 100), false, surface->GetGrContext().get(),
+  texture_->Paint(ctx, SkRect::MakeXYWH(0, 0, 100, 100), false,
                   SkSamplingOptions(SkFilterMode::kLinear));
 
   EXPECT_FALSE(resolve_called);
 
   texture_->MarkNewFrameAvailable();
 
-  texture_->Paint(*canvas, SkRect::MakeXYWH(0, 0, 100, 100), false, surface->GetGrContext().get(),
+  texture_->Paint(ctx, SkRect::MakeXYWH(0, 0, 100, 100), false,
                   SkSamplingOptions(SkFilterMode::kLinear));
 
   EXPECT_TRUE(resolve_called);

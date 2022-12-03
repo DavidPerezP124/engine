@@ -20,8 +20,8 @@ Future<void> testMain() async {
   setUpAll(() async {
     ui.debugEmulateFlutterTesterEnvironment = true;
     await ui.webOnlyInitializePlatform();
-    fontCollection.debugRegisterTestFonts();
-    await fontCollection.ensureFontsLoaded();
+    await renderer.fontCollection.debugDownloadTestFonts();
+    renderer.fontCollection.registerDownloadedFonts();
   });
 
   tearDown(() {

@@ -109,6 +109,10 @@ void testNoCrashes() {
     testCanvas((Canvas canvas) => canvas.translate(double.nan, double.nan));
     testCanvas((Canvas canvas) => canvas.drawVertices(Vertices(VertexMode.triangles, <Offset>[],
                                                                indices: <int>[]), BlendMode.screen, paint));
+    testCanvas((Canvas canvas) => canvas.drawVertices(Vertices(VertexMode.triangles, <Offset>[])..dispose(), BlendMode.screen, paint));
+
+    // Regression test for https://github.com/flutter/flutter/issues/115143
+    testCanvas((Canvas canvas) => canvas.drawPaint(Paint()..imageFilter = const ColorFilter.mode(Color(0x00000000), BlendMode.xor)));
   });
 }
 
@@ -927,6 +931,47 @@ void main() {
     canvas.clipRect(const Rect.fromLTRB(0, 0, 15, 15), clipOp: ClipOp.difference);
     expect(canvas.getLocalClipBounds(), initialLocalBounds);
     expect(canvas.getDestinationClipBounds(), initialDestinationBounds);
+  });
+
+  test('RestoreToCount can work', () async {
+    final PictureRecorder recorder = PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+    canvas.save();
+    canvas.save();
+    canvas.save();
+    canvas.save();
+    canvas.save();
+    expect(canvas.getSaveCount(), equals(6));
+    canvas.restoreToCount(2);
+    expect(canvas.getSaveCount(), equals(2));
+    canvas.restore();
+    expect(canvas.getSaveCount(), equals(1));
+  });
+
+  test('RestoreToCount count less than 1, the stack should be reset', () async {
+    final PictureRecorder recorder = PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+    canvas.save();
+    canvas.save();
+    canvas.save();
+    canvas.save();
+    canvas.save();
+    expect(canvas.getSaveCount(), equals(6));
+    canvas.restoreToCount(0);
+    expect(canvas.getSaveCount(), equals(1));
+  });
+
+  test('RestoreToCount count greater than current [getSaveCount], nothing would happend', () async {
+    final PictureRecorder recorder = PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+    canvas.save();
+    canvas.save();
+    canvas.save();
+    canvas.save();
+    canvas.save();
+    expect(canvas.getSaveCount(), equals(6));
+    canvas.restoreToCount(canvas.getSaveCount() + 1);
+    expect(canvas.getSaveCount(), equals(6));
   });
 }
 

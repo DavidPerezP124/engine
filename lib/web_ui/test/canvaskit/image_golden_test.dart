@@ -178,6 +178,28 @@ void _testForImageCodecs({required bool useBrowserImageDecoder}) {
       testCollector.collectNow();
     });
 
+    test('CkImage.clone also clones the VideoFrame', () async {
+      final CkBrowserImageDecoder image = await CkBrowserImageDecoder.create(
+        data: kAnimatedGif,
+        debugSource: 'test',
+      );
+      final ui.FrameInfo frame = await image.getNextFrame();
+      final CkImage ckImage = frame.image as CkImage;
+      expect(ckImage.videoFrame, isNotNull);
+
+      final CkImage imageClone = ckImage.clone();
+      expect(imageClone.videoFrame, isNotNull);
+
+      final ByteData png = await imageClone.toByteData(format: ui.ImageByteFormat.png);
+      expect(png, isNotNull);
+
+      // The precise PNG encoding is browser-specific, but we can check the file
+      // signature.
+      expect(detectContentType(png.buffer.asUint8List()), 'image/png');
+      testCollector.collectNow();
+    // TODO(hterkelsen): Firefox and Safari do not currently support ImageDecoder.
+    }, skip: isFirefox || isSafari);
+
     // Regression test for https://github.com/flutter/flutter/issues/72469
     test('CkImage can be resurrected', () {
       browserSupportsFinalizationRegistry = false;
@@ -207,7 +229,7 @@ void _testForImageCodecs({required bool useBrowserImageDecoder}) {
       final Future<ui.Codec> futureCodec =
           skiaInstantiateWebImageCodec('http://image-server.com/picture.jpg',
               null);
-      mock.sendEvent('load', DomProgressEvent());
+      mock.sendEvent('load', DomProgressEvent('test progress event'));
       final ui.Codec codec = await futureCodec;
       expect(codec.frameCount, 1);
       final ui.Image image = (await codec.getNextFrame()).image;
@@ -255,7 +277,7 @@ void _testForImageCodecs({required bool useBrowserImageDecoder}) {
       try {
         final Future<ui.Codec> futureCodec = skiaInstantiateWebImageCodec(
             'url-does-not-matter', null);
-        mock.sendEvent('error', DomProgressEvent());
+        mock.sendEvent('error', DomProgressEvent('test error'));
         await futureCodec;
         fail('Expected to throw');
       } on ImageCodecException catch (exception) {
@@ -295,7 +317,7 @@ void _testForImageCodecs({required bool useBrowserImageDecoder}) {
       try {
         final Future<ui.Codec> futureCodec = skiaInstantiateWebImageCodec(
             'http://image-server.com/picture.jpg', null);
-        mock.sendEvent('load', DomProgressEvent());
+        mock.sendEvent('load', DomProgressEvent('test progress event'));
         await futureCodec;
         fail('Expected to throw');
       } on ImageCodecException catch (exception) {
@@ -510,19 +532,16 @@ void _testForImageCodecs({required bool useBrowserImageDecoder}) {
         canvas.drawImage(snapshot, ui.Offset.zero, CkPaint());
         sb.addPicture(ui.Offset.zero, recorder.endRecording());
 
-        final EnginePlatformDispatcher dispatcher = ui.window.platformDispatcher as EnginePlatformDispatcher;
-        dispatcher.rasterizer!.draw(sb.build().layerTree);
+        CanvasKitRenderer.instance.rasterizer.draw(sb.build().layerTree);
         await matchGoldenFile(
           'canvaskit_read_back_decoded_image_$mode.png',
           region: const ui.Rect.fromLTRB(0, 0, 150, 150),
-          maxDiffRatePercent: 0,
         );
       }
 
       image.dispose();
       codec.dispose();
-    // TODO(hterkelsen): https://github.com/flutter/flutter/issues/109265
-    }, skip: isFirefox || isSafari);
+    });
 
     // This is a regression test for the issues with transferring textures from
     // one GL context to another, such as:
@@ -535,9 +554,6 @@ void _testForImageCodecs({required bool useBrowserImageDecoder}) {
         (int viewId) => createDomHTMLDivElement()..id = 'view-0',
       );
       await createPlatformView(0, 'test-platform-view');
-
-      final EnginePlatformDispatcher dispatcher =
-          ui.window.platformDispatcher as EnginePlatformDispatcher;
 
       final ui.Codec codec = await ui.instantiateImageCodec(k4x4PngImage);
       final CkImage image = (await codec.getNextFrame()).image as CkImage;
@@ -566,11 +582,10 @@ void _testForImageCodecs({required bool useBrowserImageDecoder}) {
         canvas.drawParagraph(makeSimpleText('2'), const ui.Offset(2, 2));
         sb.addPicture(ui.Offset.zero, recorder.endRecording());
       }
-      dispatcher.rasterizer!.draw(sb.build().layerTree);
+      CanvasKitRenderer.instance.rasterizer.draw(sb.build().layerTree);
       await matchGoldenFile(
         'canvaskit_cross_gl_context_image_$mode.png',
         region: const ui.Rect.fromLTRB(0, 0, 100, 100),
-        maxDiffRatePercent: 0,
       );
 
       await disposePlatformView(0);
@@ -611,18 +626,59 @@ void _testForImageCodecs({required bool useBrowserImageDecoder}) {
         canvas.restore();
         sb.addPicture(ui.Offset.zero, recorder.endRecording());
       }
-      final EnginePlatformDispatcher dispatcher =
-          ui.window.platformDispatcher as EnginePlatformDispatcher;
-      dispatcher.rasterizer!.draw(sb.build().layerTree);
+      CanvasKitRenderer.instance.rasterizer.draw(sb.build().layerTree);
       await matchGoldenFile(
         'canvaskit_picture_texture_toimage',
         region: const ui.Rect.fromLTRB(0, 0, 128, 128),
-        maxDiffRatePercent: 0,
       );
       mandrill.dispose();
       codec.dispose();
-    // TODO(hterkelsen): https://github.com/flutter/flutter/issues/109265
-    }, skip: isFirefox || isSafari);
+    });
+
+    test('decoded image can be read back from picture', () async {
+      final DomResponse imageResponse = await httpFetch('/test_images/mandrill_128.png');
+      final Uint8List imageData = (await imageResponse.arrayBuffer() as ByteBuffer).asUint8List();
+      final ui.Codec codec = await skiaInstantiateImageCodec(imageData);
+      final ui.FrameInfo frame = await codec.getNextFrame();
+      final CkImage image = frame.image as CkImage;
+
+      final CkImage snapshot;
+      {
+        final LayerSceneBuilder sb = LayerSceneBuilder();
+        sb.pushOffset(10, 10);
+        final CkPictureRecorder recorder = CkPictureRecorder();
+        final CkCanvas canvas = recorder.beginRecording(ui.Rect.largest);
+        canvas.drawRect(
+          const ui.Rect.fromLTRB(5, 5, 20, 20),
+          CkPaint(),
+        );
+        canvas.drawImage(image, ui.Offset.zero, CkPaint());
+        canvas.drawRect(
+          const ui.Rect.fromLTRB(90, 90, 105, 105),
+          CkPaint(),
+        );
+        sb.addPicture(ui.Offset.zero, recorder.endRecording());
+        sb.pop();
+        snapshot = await sb.build().toImage(150, 150) as CkImage;
+      }
+
+      {
+        final LayerSceneBuilder sb = LayerSceneBuilder();
+        final CkPictureRecorder recorder = CkPictureRecorder();
+        final CkCanvas canvas = recorder.beginRecording(ui.Rect.largest);
+        canvas.drawImage(snapshot, ui.Offset.zero, CkPaint());
+        sb.addPicture(ui.Offset.zero, recorder.endRecording());
+
+        CanvasKitRenderer.instance.rasterizer.draw(sb.build().layerTree);
+        await matchGoldenFile(
+          'canvaskit_read_back_decoded_image_$mode.png',
+          region: const ui.Rect.fromLTRB(0, 0, 150, 150),
+        );
+      }
+
+      image.dispose();
+      codec.dispose();
+    });
 
     test('can detect JPEG from just magic number', () async {
       expect(
@@ -716,7 +772,7 @@ void _testCkBrowserImageDecoder() {
     final ImageDecoder? decoder1 = image.debugCachedWebDecoder;
     expect(decoder1, isNotNull);
     expect(image.frameCount, 3);
-    expect(image.repetitionCount, double.infinity);
+    expect(image.repetitionCount, -1);
 
     // A frame can be decoded right away.
     final ui.FrameInfo frame1 = await image.getNextFrame();

@@ -5,6 +5,7 @@
 #include "impeller/renderer/backend/gles/texture_gles.h"
 
 #include <optional>
+#include <utility>
 
 #include "flutter/fml/mapping.h"
 #include "flutter/fml/trace_event.h"
@@ -38,18 +39,18 @@ HandleType ToHandleType(TextureGLES::Type type) {
 }
 
 TextureGLES::TextureGLES(ReactorGLES::Ref reactor, TextureDescriptor desc)
-    : TextureGLES(std::move(reactor), std::move(desc), false) {}
+    : TextureGLES(std::move(reactor), desc, false) {}
 
 TextureGLES::TextureGLES(ReactorGLES::Ref reactor,
                          TextureDescriptor desc,
                          enum IsWrapped wrapped)
-    : TextureGLES(std::move(reactor), std::move(desc), true) {}
+    : TextureGLES(std::move(reactor), desc, true) {}
 
 TextureGLES::TextureGLES(std::shared_ptr<ReactorGLES> reactor,
                          TextureDescriptor desc,
                          bool is_wrapped)
-    : Texture(std::move(desc)),
-      reactor_(reactor),
+    : Texture(desc),
+      reactor_(std::move(reactor)),
       type_(GetTextureTypeFromDescriptor(GetTextureDescriptor())),
       handle_(reactor_->CreateHandle(ToHandleType(type_))),
       is_wrapped_(is_wrapped) {
@@ -72,7 +73,7 @@ TextureGLES::TextureGLES(std::shared_ptr<ReactorGLES> reactor,
 
 // |Texture|
 TextureGLES::~TextureGLES() {
-  reactor_->CollectHandle(std::move(handle_));
+  reactor_->CollectHandle(handle_);
 }
 
 // |Texture|
@@ -108,6 +109,8 @@ struct TexImage2DData {
         break;
       case PixelFormat::kUnknown:
       case PixelFormat::kS8UInt:
+      case PixelFormat::kR8UNormInt:
+      case PixelFormat::kR8G8UNormInt:
         return;
     }
     is_valid_ = true;
@@ -139,6 +142,10 @@ struct TexImage2DData {
       case PixelFormat::kB8G8R8A8UNormIntSRGB:
         return;
       case PixelFormat::kS8UInt:
+        return;
+      case PixelFormat::kR8UNormInt:
+        return;
+      case PixelFormat::kR8G8UNormInt:
         return;
     }
     is_valid_ = true;
@@ -274,6 +281,8 @@ static std::optional<GLenum> ToRenderBufferFormat(PixelFormat format) {
       return GL_STENCIL_INDEX8;
     case PixelFormat::kUnknown:
     case PixelFormat::kA8UNormInt:
+    case PixelFormat::kR8UNormInt:
+    case PixelFormat::kR8G8UNormInt:
     case PixelFormat::kR8G8B8A8UNormIntSRGB:
     case PixelFormat::kB8G8R8A8UNormIntSRGB:
       return std::nullopt;

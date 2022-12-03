@@ -15,9 +15,9 @@ import '../vector_math.dart';
 import '../window.dart';
 import 'canvas.dart';
 import 'embedded_views_diff.dart';
-import 'initialization.dart';
 import 'path.dart';
 import 'picture_recorder.dart';
+import 'renderer.dart';
 import 'surface.dart';
 import 'surface_factory.dart';
 
@@ -27,6 +27,8 @@ class HtmlViewEmbedder {
 
   /// The [HtmlViewEmbedder] singleton.
   static HtmlViewEmbedder instance = HtmlViewEmbedder._();
+
+  DomElement get skiaSceneHost => CanvasKitRenderer.instance.sceneHost!;
 
   /// Force the view embedder to disable overlays.
   ///
@@ -270,7 +272,7 @@ class HtmlViewEmbedder {
 
     // If the chain was previously attached, attach it to the same position.
     if (headClipViewWasAttached) {
-      skiaSceneHost!.insertBefore(head, headClipViewNextSibling);
+      skiaSceneHost.insertBefore(head, headClipViewNextSibling);
     }
     return head;
   }
@@ -320,6 +322,11 @@ class HtmlViewEmbedder {
           clipView.style.clipPath = '';
           headTransform = Matrix4.identity();
           clipView.style.transform = '';
+          // We need to set width and height for the clipView to cover the
+          // bounds of the path since Safari seem to incorrectly intersect
+          // the  element bounding rect with the clip path.
+          clipView.style.width = '100%';
+          clipView.style.height = '100%';
           if (mutator.rect != null) {
             final ui.Rect rect = mutator.rect!;
             clipView.style.clip = 'rect(${rect.top}px, ${rect.right}px, '
@@ -408,7 +415,7 @@ class HtmlViewEmbedder {
     }
     _svgPathDefs = kSvgResourceHeader.cloneNode(false) as SVGElement;
     _svgPathDefs!.append(createSVGDefsElement()..id = 'sk_path_defs');
-    skiaSceneHost!.append(_svgPathDefs!);
+    skiaSceneHost.append(_svgPathDefs!);
   }
 
   void submitFrame() {
@@ -476,18 +483,18 @@ class HtmlViewEmbedder {
         }
         if (diffResult.addToBeginning) {
           final DomElement platformViewRoot = _viewClipChains[viewId]!.root;
-          skiaSceneHost!.insertBefore(platformViewRoot, elementToInsertBefore);
+          skiaSceneHost.insertBefore(platformViewRoot, elementToInsertBefore);
           final Surface? overlay = _overlays[viewId];
           if (overlay != null) {
-            skiaSceneHost!
-                .insertBefore(overlay.htmlElement, elementToInsertBefore);
+            skiaSceneHost.insertBefore(
+                overlay.htmlElement, elementToInsertBefore);
           }
         } else {
           final DomElement platformViewRoot = _viewClipChains[viewId]!.root;
-          skiaSceneHost!.append(platformViewRoot);
+          skiaSceneHost.append(platformViewRoot);
           final Surface? overlay = _overlays[viewId];
           if (overlay != null) {
-            skiaSceneHost!.append(overlay.htmlElement);
+            skiaSceneHost.append(overlay.htmlElement);
           }
         }
       }
@@ -500,11 +507,11 @@ class HtmlViewEmbedder {
           if (!overlayElement.isConnected!) {
             // This overlay wasn't added to the DOM.
             if (i == _compositionOrder.length - 1) {
-              skiaSceneHost!.append(overlayElement);
+              skiaSceneHost.append(overlayElement);
             } else {
               final int nextView = _compositionOrder[i + 1];
               final DomElement nextElement = _viewClipChains[nextView]!.root;
-              skiaSceneHost!.insertBefore(overlayElement, nextElement);
+              skiaSceneHost.insertBefore(overlayElement, nextElement);
             }
           }
         }
@@ -524,9 +531,9 @@ class HtmlViewEmbedder {
 
         final DomElement platformViewRoot = _viewClipChains[viewId]!.root;
         final Surface? overlay = _overlays[viewId];
-        skiaSceneHost!.append(platformViewRoot);
+        skiaSceneHost.append(platformViewRoot);
         if (overlay != null) {
-          skiaSceneHost!.append(overlay.htmlElement);
+          skiaSceneHost.append(overlay.htmlElement);
         }
         _activeCompositionOrder.add(viewId);
         unusedViews.remove(viewId);
@@ -594,8 +601,15 @@ class HtmlViewEmbedder {
       return;
     }
     final List<List<int>> overlayGroups = getOverlayGroups(_compositionOrder);
-    final Iterable<int> viewsNeedingOverlays =
-        overlayGroups.map((List<int> group) => group.last);
+    final List<int> viewsNeedingOverlays =
+        overlayGroups.map((List<int> group) => group.last).toList();
+    // If there were more visible views than overlays, then the last group
+    // doesn't have an overlay.
+    if (viewsNeedingOverlays.length > SurfaceFactory.instance.maximumOverlays) {
+      assert(viewsNeedingOverlays.length ==
+          SurfaceFactory.instance.maximumOverlays + 1);
+      viewsNeedingOverlays.removeLast();
+    }
     if (diffResult == null) {
       // Everything is going to be explicitly recomposited anyway. Release all
       // the surfaces and assign an overlay to all the surfaces needing one.
@@ -624,12 +638,16 @@ class HtmlViewEmbedder {
   // of the composition order which can share the same overlay. Every overlay
   // group is a list containing a visible view followed by zero or more
   // invisible views.
+  //
+  // If there are more visible views than overlays, then the views which cannot
+  // be assigned an overlay are grouped together and will be rendered on top of
+  // the rest of the scene.
   List<List<int>> getOverlayGroups(List<int> views) {
     // Visibility groups are typically a visible view followed by zero or more
     // invisible views. However, if the view list begins with one or more
     // invisible views, we can group them with the first visible view.
-    final int maxGroups = SurfaceFactory.instance.maximumOverlays;
-    if (maxGroups == 0) {
+    final int maxOverlays = SurfaceFactory.instance.maximumOverlays;
+    if (maxOverlays == 0) {
       return const <List<int>>[];
     }
     bool foundFirstVisibleView = false;
@@ -637,20 +655,22 @@ class HtmlViewEmbedder {
     List<int> currentGroup = <int>[];
     int i = 0;
     for (; i < views.length; i++) {
-      // If we're on the last group, then break and just add all the rest of the
-      // views to current group.
-      if (result.length == maxGroups - 1) {
-        break;
-      }
       final int view = views[i];
       if (platformViewManager.isInvisible(view)) {
         currentGroup.add(view);
       } else {
         if (foundFirstVisibleView) {
-          // We hit this case if this is the first visible view.
           result.add(currentGroup);
-          currentGroup = <int>[view];
+          // If we are out of overlays, then break let the rest of the views be
+          // added to an extra group that will be rendered on top of the scene.
+          if (result.length == maxOverlays) {
+            currentGroup = <int>[];
+            break;
+          } else {
+            currentGroup = <int>[view];
+          }
         } else {
+          // We hit this case if this is the first visible view.
           foundFirstVisibleView = true;
           currentGroup.add(view);
         }
@@ -669,7 +689,7 @@ class HtmlViewEmbedder {
     assert(!_overlays.containsKey(viewId));
 
     // Try reusing a cached overlay created for another platform view.
-    final Surface overlay = SurfaceFactory.instance.getOverlay()!;
+    final Surface overlay = SurfaceFactory.instance.getSurface()!;
     overlay.createOrUpdateSurface(_frameSize);
     _overlays[viewId] = overlay;
   }

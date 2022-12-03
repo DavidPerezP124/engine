@@ -122,12 +122,19 @@ class WindowBindingHandlerDelegate {
                         FlutterPointerDeviceKind device_kind,
                         int32_t device_id) = 0;
 
+  // Notifies delegate that scroll inertia should be cancelled.
+  // Typically called by DirectManipulationEventHandler
+  virtual void OnScrollInertiaCancel(int32_t device_id) = 0;
+
   // Notifies delegate that the Flutter semantics tree should be enabled or
   // disabled.
   virtual void OnUpdateSemanticsEnabled(bool enabled) = 0;
 
   // Returns the root view accessibility node, or nullptr if none.
   virtual gfx::NativeViewAccessible GetNativeViewAccessible() = 0;
+
+  // Update the status of the high contrast feature
+  virtual void UpdateHighContrastEnabled(bool enabled) = 0;
 };
 
 }  // namespace flutter

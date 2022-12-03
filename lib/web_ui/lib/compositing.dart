@@ -33,13 +33,9 @@ abstract class ShaderMaskEngineLayer implements EngineLayer {}
 abstract class PhysicalShapeEngineLayer implements EngineLayer {}
 
 abstract class SceneBuilder {
-  factory SceneBuilder() {
-    if (engine.useCanvasKit) {
-      return engine.LayerSceneBuilder();
-    } else {
-      return engine.SurfaceSceneBuilder();
-    }
-  }
+  factory SceneBuilder() =>
+    engine.renderer.createSceneBuilder();
+
   OffsetEngineLayer pushOffset(
     double dx,
     double dy, {
@@ -75,6 +71,7 @@ abstract class SceneBuilder {
   });
   ImageFilterEngineLayer pushImageFilter(
     ImageFilter filter, {
+    Offset offset = Offset.zero,
     ImageFilterEngineLayer? oldLayer,
   });
   BackdropFilterEngineLayer pushBackdropFilter(
@@ -89,6 +86,10 @@ abstract class SceneBuilder {
     ShaderMaskEngineLayer? oldLayer,
     FilterQuality filterQuality = FilterQuality.low,
   });
+  @Deprecated(
+    'Use a clip and canvas operations directly (See RenderPhysicalModel). '
+    'This feature was deprecated after v3.1.0-0.0.pre.',
+  )
   PhysicalShapeEngineLayer pushPhysicalShape({
     required Path path,
     required double elevation,

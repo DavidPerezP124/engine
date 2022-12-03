@@ -4,11 +4,16 @@
 
 #include "flutter/shell/platform/windows/flutter_window.h"
 
+#include <WinUser.h>
 #include <dwmapi.h>
+
 #include <chrono>
 #include <map>
 
 #include "flutter/fml/logging.h"
+#include "flutter/shell/platform/embedder/embedder.h"
+#include "flutter/shell/platform/windows/flutter_windows_engine.h"
+#include "flutter/shell/platform/windows/flutter_windows_view.h"
 
 namespace flutter {
 
@@ -98,6 +103,11 @@ PhysicalWindowBounds FlutterWindow::GetPhysicalWindowBounds() {
 
 void FlutterWindow::UpdateFlutterCursor(const std::string& cursor_name) {
   current_cursor_ = GetCursorByName(cursor_name);
+}
+
+void FlutterWindow::SetFlutterCursor(HCURSOR cursor) {
+  current_cursor_ = cursor;
+  ::SetCursor(current_cursor_);
 }
 
 void FlutterWindow::OnWindowResized() {
@@ -275,6 +285,22 @@ PointerLocation FlutterWindow::GetPrimaryPointerLocation() {
   GetCursorPos(&point);
   ScreenToClient(GetWindowHandle(), &point);
   return {(size_t)point.x, (size_t)point.y};
+}
+
+void FlutterWindow::OnThemeChange() {
+  binding_handler_delegate_->UpdateHighContrastEnabled(
+      GetHighContrastEnabled());
+}
+
+void FlutterWindow::SendInitialAccessibilityFeatures() {
+  OnThemeChange();
+}
+
+AccessibilityRootNode* FlutterWindow::GetAccessibilityRootNode() {
+  if (!accessibility_root_) {
+    CreateAccessibilityRootNode();
+  }
+  return accessibility_root_;
 }
 
 }  // namespace flutter

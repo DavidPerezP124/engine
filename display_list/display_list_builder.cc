@@ -359,10 +359,9 @@ void DisplayListBuilder::setAttributesFromDlPaint(
   if (flags.applies_image_filter()) {
     setImageFilter(paint.getImageFilter().get());
   }
-  // Waiting for https://github.com/flutter/engine/pull/32159
-  // if (flags.applies_path_effect()) {
-  //   setPathEffect(sk_ref_sp(paint.getPathEffect()));
-  // }
+  if (flags.applies_path_effect()) {
+    setPathEffect(paint.getPathEffect().get());
+  }
   if (flags.applies_mask_filter()) {
     setMaskFilter(paint.getMaskFilter().get());
   }
@@ -476,7 +475,7 @@ void DisplayListBuilder::restore() {
 }
 void DisplayListBuilder::restoreToCount(int restore_count) {
   FML_DCHECK(restore_count <= getSaveCount());
-  while (restore_count < getSaveCount()) {
+  while (restore_count < getSaveCount() && getSaveCount() > 1) {
     restore();
   }
 }
@@ -695,19 +694,34 @@ void DisplayListBuilder::clipPath(const SkPath& path,
   }
 }
 void DisplayListBuilder::intersect(const SkRect& rect) {
-  SkRect devClipBounds = getTransform().mapRect(rect);
-  if (!current_layer_->clip_bounds.intersect(devClipBounds)) {
+  SkRect dev_clip_bounds = getTransform().mapRect(rect);
+  if (!current_layer_->clip_bounds.intersect(dev_clip_bounds)) {
     current_layer_->clip_bounds.setEmpty();
   }
 }
 SkRect DisplayListBuilder::getLocalClipBounds() {
   SkM44 inverse;
   if (current_layer_->matrix.invert(&inverse)) {
-    SkRect devBounds;
-    current_layer_->clip_bounds.roundOut(&devBounds);
-    return inverse.asM33().mapRect(devBounds);
+    SkRect dev_bounds;
+    current_layer_->clip_bounds.roundOut(&dev_bounds);
+    return inverse.asM33().mapRect(dev_bounds);
   }
-  return kMaxCullRect_;
+  return kMaxCullRect;
+}
+
+bool DisplayListBuilder::quickReject(const SkRect& bounds) const {
+  if (bounds.isEmpty()) {
+    return true;
+  }
+  SkMatrix matrix = getTransform();
+  // We don't need the inverse, but this method tells us if the matrix
+  // is singular in which case we can reject all rendering.
+  if (!matrix.invert(nullptr)) {
+    return true;
+  }
+  SkRect dev_bounds;
+  matrix.mapRect(bounds).roundOut(&dev_bounds);
+  return !current_layer_->clip_bounds.intersects(dev_bounds);
 }
 
 void DisplayListBuilder::drawPaint() {
@@ -864,7 +878,7 @@ void DisplayListBuilder::drawPoints(SkCanvas::PointMode mode,
 }
 void DisplayListBuilder::drawSkVertices(const sk_sp<SkVertices> vertices,
                                         SkBlendMode mode) {
-  Push<DrawSkVerticesOp>(0, 1, std::move(vertices), mode);
+  Push<DrawSkVerticesOp>(0, 1, vertices, mode);
   // DrawVertices applies its colors to the paint so we have no way
   // of controlling opacity using the current paint attributes.
   // Although, examination of the |mode| might find some predictable
@@ -893,11 +907,11 @@ void DisplayListBuilder::drawImage(const sk_sp<DlImage> image,
                                    DlImageSampling sampling,
                                    bool render_with_attributes) {
   render_with_attributes
-      ? Push<DrawImageWithAttrOp>(0, 1, std::move(image), point, sampling)
-      : Push<DrawImageOp>(0, 1, std::move(image), point, sampling);
+      ? Push<DrawImageWithAttrOp>(0, 1, image, point, sampling)
+      : Push<DrawImageOp>(0, 1, image, point, sampling);
   CheckLayerOpacityCompatibility(render_with_attributes);
 }
-void DisplayListBuilder::drawImage(const sk_sp<DlImage> image,
+void DisplayListBuilder::drawImage(const sk_sp<DlImage>& image,
                                    const SkPoint point,
                                    DlImageSampling sampling,
                                    const DlPaint* paint) {
@@ -915,11 +929,11 @@ void DisplayListBuilder::drawImageRect(const sk_sp<DlImage> image,
                                        DlImageSampling sampling,
                                        bool render_with_attributes,
                                        SkCanvas::SrcRectConstraint constraint) {
-  Push<DrawImageRectOp>(0, 1, std::move(image), src, dst, sampling,
-                        render_with_attributes, constraint);
+  Push<DrawImageRectOp>(0, 1, image, src, dst, sampling, render_with_attributes,
+                        constraint);
   CheckLayerOpacityCompatibility(render_with_attributes);
 }
-void DisplayListBuilder::drawImageRect(const sk_sp<DlImage> image,
+void DisplayListBuilder::drawImageRect(const sk_sp<DlImage>& image,
                                        const SkRect& src,
                                        const SkRect& dst,
                                        DlImageSampling sampling,
@@ -939,12 +953,11 @@ void DisplayListBuilder::drawImageNine(const sk_sp<DlImage> image,
                                        DlFilterMode filter,
                                        bool render_with_attributes) {
   render_with_attributes
-      ? Push<DrawImageNineWithAttrOp>(0, 1, std::move(image), center, dst,
-                                      filter)
-      : Push<DrawImageNineOp>(0, 1, std::move(image), center, dst, filter);
+      ? Push<DrawImageNineWithAttrOp>(0, 1, image, center, dst, filter)
+      : Push<DrawImageNineOp>(0, 1, image, center, dst, filter);
   CheckLayerOpacityCompatibility(render_with_attributes);
 }
-void DisplayListBuilder::drawImageNine(const sk_sp<DlImage> image,
+void DisplayListBuilder::drawImageNine(const sk_sp<DlImage>& image,
                                        const SkIRect& center,
                                        const SkRect& dst,
                                        DlFilterMode filter,
@@ -962,21 +975,21 @@ void DisplayListBuilder::drawImageLattice(const sk_sp<DlImage> image,
                                           const SkRect& dst,
                                           DlFilterMode filter,
                                           bool render_with_attributes) {
-  int xDivCount = lattice.fXCount;
-  int yDivCount = lattice.fYCount;
+  int x_div_count = lattice.fXCount;
+  int y_div_count = lattice.fYCount;
   FML_DCHECK((lattice.fRectTypes == nullptr) || (lattice.fColors != nullptr));
-  int cellCount = lattice.fRectTypes && lattice.fColors
-                      ? (xDivCount + 1) * (yDivCount + 1)
-                      : 0;
+  int cell_count = lattice.fRectTypes && lattice.fColors
+                       ? (x_div_count + 1) * (y_div_count + 1)
+                       : 0;
   size_t bytes =
-      (xDivCount + yDivCount) * sizeof(int) +
-      cellCount * (sizeof(SkColor) + sizeof(SkCanvas::Lattice::RectType));
+      (x_div_count + y_div_count) * sizeof(int) +
+      cell_count * (sizeof(SkColor) + sizeof(SkCanvas::Lattice::RectType));
   SkIRect src = lattice.fBounds ? *lattice.fBounds : image->bounds();
-  void* pod = this->Push<DrawImageLatticeOp>(
-      bytes, 1, std::move(image), xDivCount, yDivCount, cellCount, src, dst,
-      filter, render_with_attributes);
-  CopyV(pod, lattice.fXDivs, xDivCount, lattice.fYDivs, yDivCount,
-        lattice.fColors, cellCount, lattice.fRectTypes, cellCount);
+  void* pod = this->Push<DrawImageLatticeOp>(bytes, 1, image, x_div_count,
+                                             y_div_count, cell_count, src, dst,
+                                             filter, render_with_attributes);
+  CopyV(pod, lattice.fXDivs, x_div_count, lattice.fYDivs, y_div_count,
+        lattice.fColors, cell_count, lattice.fRectTypes, cell_count);
   CheckLayerOpacityCompatibility(render_with_attributes);
 }
 void DisplayListBuilder::drawAtlas(const sk_sp<DlImage> atlas,
@@ -993,22 +1006,22 @@ void DisplayListBuilder::drawAtlas(const sk_sp<DlImage> atlas,
   if (colors != nullptr) {
     bytes += count * sizeof(DlColor);
     if (cull_rect != nullptr) {
-      data_ptr = Push<DrawAtlasCulledOp>(bytes, 1, std::move(atlas), count,
-                                         mode, sampling, true, *cull_rect,
-                                         render_with_attributes);
+      data_ptr =
+          Push<DrawAtlasCulledOp>(bytes, 1, atlas, count, mode, sampling, true,
+                                  *cull_rect, render_with_attributes);
     } else {
-      data_ptr = Push<DrawAtlasOp>(bytes, 1, std::move(atlas), count, mode,
-                                   sampling, true, render_with_attributes);
+      data_ptr = Push<DrawAtlasOp>(bytes, 1, atlas, count, mode, sampling, true,
+                                   render_with_attributes);
     }
     CopyV(data_ptr, xform, count, tex, count, colors, count);
   } else {
     if (cull_rect != nullptr) {
-      data_ptr = Push<DrawAtlasCulledOp>(bytes, 1, std::move(atlas), count,
-                                         mode, sampling, false, *cull_rect,
-                                         render_with_attributes);
+      data_ptr =
+          Push<DrawAtlasCulledOp>(bytes, 1, atlas, count, mode, sampling, false,
+                                  *cull_rect, render_with_attributes);
     } else {
-      data_ptr = Push<DrawAtlasOp>(bytes, 1, std::move(atlas), count, mode,
-                                   sampling, false, render_with_attributes);
+      data_ptr = Push<DrawAtlasOp>(bytes, 1, atlas, count, mode, sampling,
+                                   false, render_with_attributes);
     }
     CopyV(data_ptr, xform, count, tex, count);
   }
@@ -1017,7 +1030,7 @@ void DisplayListBuilder::drawAtlas(const sk_sp<DlImage> atlas,
   // of the transforms and texture rectangles.
   UpdateLayerOpacityCompatibility(false);
 }
-void DisplayListBuilder::drawAtlas(const sk_sp<DlImage> atlas,
+void DisplayListBuilder::drawAtlas(const sk_sp<DlImage>& atlas,
                                    const SkRSXform xform[],
                                    const SkRect tex[],
                                    const DlColor colors[],
@@ -1041,9 +1054,9 @@ void DisplayListBuilder::drawPicture(const sk_sp<SkPicture> picture,
                                      const SkMatrix* matrix,
                                      bool render_with_attributes) {
   matrix  //
-      ? Push<DrawSkPictureMatrixOp>(0, 1, std::move(picture), *matrix,
+      ? Push<DrawSkPictureMatrixOp>(0, 1, picture, *matrix,
                                     render_with_attributes)
-      : Push<DrawSkPictureOp>(0, 1, std::move(picture), render_with_attributes);
+      : Push<DrawSkPictureOp>(0, 1, picture, render_with_attributes);
   // The non-nested op count accumulated in the |Push| method will include
   // this call to |drawPicture| for non-nested op count metrics.
   // But, for nested op count metrics we want the |drawPicture| call itself
@@ -1056,7 +1069,7 @@ void DisplayListBuilder::drawPicture(const sk_sp<SkPicture> picture,
 }
 void DisplayListBuilder::drawDisplayList(
     const sk_sp<DisplayList> display_list) {
-  Push<DrawDisplayListOp>(0, 1, std::move(display_list));
+  Push<DrawDisplayListOp>(0, 1, display_list);
   // The non-nested op count accumulated in the |Push| method will include
   // this call to |drawDisplayList| for non-nested op count metrics.
   // But, for nested op count metrics we want the |drawDisplayList| call itself
@@ -1070,8 +1083,15 @@ void DisplayListBuilder::drawDisplayList(
 void DisplayListBuilder::drawTextBlob(const sk_sp<SkTextBlob> blob,
                                       SkScalar x,
                                       SkScalar y) {
-  Push<DrawTextBlobOp>(0, 1, std::move(blob), x, y);
+  Push<DrawTextBlobOp>(0, 1, blob, x, y);
   CheckLayerOpacityCompatibility();
+}
+void DisplayListBuilder::drawTextBlob(const sk_sp<SkTextBlob>& blob,
+                                      SkScalar x,
+                                      SkScalar y,
+                                      const DlPaint& paint) {
+  setAttributesFromDlPaint(paint, DisplayListOpFlags::kDrawTextBlobFlags);
+  drawTextBlob(blob, x, y);
 }
 void DisplayListBuilder::drawShadow(const SkPath& path,
                                     const DlColor color,

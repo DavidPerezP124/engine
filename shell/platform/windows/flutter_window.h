@@ -132,6 +132,9 @@ class FlutterWindow : public Window, public WindowBindingHandler {
   void UpdateFlutterCursor(const std::string& cursor_name) override;
 
   // |FlutterWindowBindingHandler|
+  void SetFlutterCursor(HCURSOR cursor) override;
+
+  // |FlutterWindowBindingHandler|
   void OnWindowResized() override;
 
   // |FlutterWindowBindingHandler|
@@ -141,6 +144,15 @@ class FlutterWindow : public Window, public WindowBindingHandler {
 
   // |FlutterWindowBindingHandler|
   PointerLocation GetPrimaryPointerLocation() override;
+
+  // |Window|
+  void OnThemeChange() override;
+
+  // |WindowBindingHandler|
+  void SendInitialAccessibilityFeatures() override;
+
+  // |WindowBindingHandler|
+  AccessibilityRootNode* GetAccessibilityRootNode() override;
 
  private:
   // A pointer to a FlutterWindowsView that can be used to update engine

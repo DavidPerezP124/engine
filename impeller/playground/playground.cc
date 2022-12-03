@@ -9,6 +9,7 @@
 
 #include "impeller/image/decompressed_image.h"
 #include "impeller/renderer/command_buffer.h"
+#include "impeller/runtime_stage/runtime_stage.h"
 
 #define GLFW_INCLUDE_NONE
 #include "third_party/glfw/include/GLFW/glfw3.h"
@@ -61,11 +62,11 @@ struct Playground::GLFWInitializer {
     //    applicationDidFinishLaunching is never fired.
     static std::once_flag sOnceInitializer;
     std::call_once(sOnceInitializer, []() {
-      FML_CHECK(::glfwInit() == GLFW_TRUE);
       ::glfwSetErrorCallback([](int code, const char* description) {
         FML_LOG(ERROR) << "GLFW Error '" << description << "'  (" << code
                        << ").";
       });
+      FML_CHECK(::glfwInit() == GLFW_TRUE);
     });
   }
 };
@@ -76,7 +77,7 @@ Playground::Playground()
 Playground::~Playground() = default;
 
 std::shared_ptr<Context> Playground::GetContext() const {
-  return renderer_ ? renderer_->GetContext() : nullptr;
+  return context_;
 }
 
 bool Playground::SupportsBackend(PlaygroundBackend backend) {
@@ -103,18 +104,24 @@ bool Playground::SupportsBackend(PlaygroundBackend backend) {
   FML_UNREACHABLE();
 }
 
-void Playground::SetupWindow(PlaygroundBackend backend) {
+void Playground::SetupContext(PlaygroundBackend backend) {
   FML_CHECK(SupportsBackend(backend));
 
   impl_ = PlaygroundImpl::Create(backend);
   if (!impl_) {
     return;
   }
-  auto context = impl_->GetContext();
-  if (!context) {
+
+  context_ = impl_->GetContext();
+}
+
+void Playground::SetupWindow() {
+  if (!context_) {
+    FML_LOG(WARNING)
+        << "Asked to setup a window with no context (call SetupContext first).";
     return;
   }
-  auto renderer = std::make_unique<Renderer>(std::move(context));
+  auto renderer = std::make_unique<Renderer>(context_);
   if (!renderer->IsValid()) {
     return;
   }
@@ -122,6 +129,7 @@ void Playground::SetupWindow(PlaygroundBackend backend) {
 }
 
 void Playground::TeardownWindow() {
+  context_.reset();
   renderer_.reset();
   impl_.reset();
 }
@@ -161,7 +169,8 @@ void Playground::SetCursorPosition(Point pos) {
   cursor_position_ = pos;
 }
 
-bool Playground::OpenPlaygroundHere(Renderer::RenderCallback render_callback) {
+bool Playground::OpenPlaygroundHere(
+    const Renderer::RenderCallback& render_callback) {
   if (!is_enabled()) {
     return true;
   }
@@ -211,6 +220,8 @@ bool Playground::OpenPlaygroundHere(Renderer::RenderCallback render_callback) {
   fml::ScopedCleanupClosure shutdown_imgui_impeller(
       []() { ImGui_ImplImpeller_Shutdown(); });
 
+  ImGui::SetNextWindowPos({10, 10});
+
   ::glfwSetWindowSize(window, GetWindowSize().width, GetWindowSize().height);
   ::glfwSetWindowPos(window, 200, 100);
   ::glfwShowWindow(window);
@@ -242,9 +253,46 @@ bool Playground::OpenPlaygroundHere(Renderer::RenderCallback render_callback) {
         if (render_target.GetColorAttachments().empty()) {
           return false;
         }
+
         auto color0 = render_target.GetColorAttachments().find(0)->second;
         color0.load_action = LoadAction::kLoad;
+        if (color0.resolve_texture) {
+          color0.texture = color0.resolve_texture;
+          color0.resolve_texture = nullptr;
+          color0.store_action = StoreAction::kStore;
+        }
         render_target.SetColorAttachment(color0, 0);
+
+#ifndef IMPELLER_ENABLE_VULKAN
+        {
+          TextureDescriptor stencil0_tex;
+          stencil0_tex.storage_mode = StorageMode::kDeviceTransient;
+          stencil0_tex.type = TextureType::kTexture2D;
+          stencil0_tex.sample_count = SampleCount::kCount1;
+          stencil0_tex.format = PixelFormat::kDefaultStencil;
+          stencil0_tex.size = color0.texture->GetSize();
+          stencil0_tex.usage =
+              static_cast<TextureUsageMask>(TextureUsage::kRenderTarget);
+          auto stencil_texture =
+              renderer->GetContext()->GetResourceAllocator()->CreateTexture(
+                  stencil0_tex);
+
+          if (!stencil_texture) {
+            VALIDATION_LOG << "Could not create stencil texture.";
+            return false;
+          }
+          stencil_texture->SetLabel("ImguiStencil");
+
+          StencilAttachment stencil0;
+          stencil0.texture = stencil_texture;
+          stencil0.clear_stencil = 0;
+          stencil0.load_action = LoadAction::kClear;
+          stencil0.store_action = StoreAction::kDontCare;
+
+          render_target.SetStencilAttachment(stencil0);
+        }
+#endif
+
         auto pass = buffer->CreateRenderPass(render_target);
         if (!pass) {
           return false;
@@ -336,13 +384,14 @@ std::shared_ptr<Texture> Playground::CreateTextureForFixture(
   }
 
   auto texture_descriptor = TextureDescriptor{};
+  texture_descriptor.storage_mode = StorageMode::kHostVisible;
   texture_descriptor.format = PixelFormat::kR8G8B8A8UNormInt;
   texture_descriptor.size = image->GetSize();
   texture_descriptor.mip_count =
       enable_mipmapping ? image->GetSize().MipCount() : 1u;
 
   auto texture = renderer_->GetContext()->GetResourceAllocator()->CreateTexture(
-      StorageMode::kHostVisible, texture_descriptor);
+      texture_descriptor);
   if (!texture) {
     VALIDATION_LOG << "Could not allocate texture for fixture " << fixture_name;
     return nullptr;
@@ -370,13 +419,14 @@ std::shared_ptr<Texture> Playground::CreateTextureCubeForFixture(
   }
 
   auto texture_descriptor = TextureDescriptor{};
+  texture_descriptor.storage_mode = StorageMode::kHostVisible;
   texture_descriptor.type = TextureType::kTextureCube;
   texture_descriptor.format = PixelFormat::kR8G8B8A8UNormInt;
   texture_descriptor.size = images[0].GetSize();
   texture_descriptor.mip_count = 1u;
 
   auto texture = renderer_->GetContext()->GetResourceAllocator()->CreateTexture(
-      StorageMode::kHostVisible, texture_descriptor);
+      texture_descriptor);
   if (!texture) {
     VALIDATION_LOG << "Could not allocate texture cube.";
     return nullptr;
