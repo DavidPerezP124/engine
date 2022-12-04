@@ -70,10 +70,9 @@ typedef int socket_t;
 #define SOCKET_EAGAIN_EINPROGRESS EAGAIN
 #define SOCKET_EWOULDBLOCK EWOULDBLOCK
 #endif
-
+#include <arpa/inet.h>
 #include <string>
 #include <vector>
-#include <arpa/inet.h>
 #include "easywsclient.hpp"
 
 using easywsclient::BytesCallback_Imp;
@@ -510,7 +509,8 @@ easywsclient::WebSocket::pointer from_url(const std::string& url,
     return NULL;
   }
   socket_t sockfd = hostname_connect(host, port);
-   fprintf(stderr, "easywsclient: connecting: host=%s port=%d path=/%s\n",host, port, path);
+  fprintf(stderr, "easywsclient: connecting: host=%s port=%d path=/%s\n", host,
+          port, path);
 
   if (sockfd == INVALID_SOCKET) {
     fprintf(stderr, "Unable to connect to %s:%d\n", host, port);
@@ -589,7 +589,7 @@ easywsclient::WebSocket::pointer from_url(const std::string& url,
   return easywsclient::WebSocket::pointer(new _RealWebSocket(sockfd, useMask));
 }
 
-}  // namespace
+}  // namespace flutter
 
 namespace easywsclient {
 

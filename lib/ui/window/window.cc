@@ -33,7 +33,7 @@ void Window::DispatchPointerDataPacket(const PointerDataPacket& packet) {
   Dart_Handle data_handle =
       tonic::DartByteData::Create(buffer.data(), buffer.size());
   if (Dart_IsError(data_handle)) {
-      fprintf(stderr, "error handle ");
+    fprintf(stderr, "error handle ");
     return;
   }
   tonic::CheckAndHandleError(tonic::DartInvokeField(

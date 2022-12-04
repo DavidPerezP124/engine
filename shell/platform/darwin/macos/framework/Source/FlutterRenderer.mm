@@ -89,8 +89,6 @@ int counter;
   return config;
 }
 
-
-
 #pragma mark - Embedder callback implementations.
 
 - (FlutterMetalTexture)createTextureForView:(uint64_t)viewId size:(CGSize)size {
@@ -118,20 +116,21 @@ int counter;
   FlutterRenderer* __weak weakSelf = self;
 
   dispatch_async(dispatch_get_main_queue(), ^{
-      [weakSelf drawImage:view];
+    [weakSelf drawImage:view];
   });
   [view present];
 
   return YES;
 }
 
-- (void) drawImage:(nonnull FlutterView*) flutterView {
-  NSImage *image = [flutterView imageRepresentation];
-  NSData *imageData = image.TIFFRepresentation;
-  NSBitmapImageRep *imageRep = [NSBitmapImageRep imageRepWithData:imageData];
-  NSDictionary *imageProps = [NSDictionary dictionaryWithObject:[NSNumber numberWithFloat:1.0] forKey:NSImageCompressionFactor];
+- (void)drawImage:(nonnull FlutterView*)flutterView {
+  NSImage* image = [flutterView imageRepresentation];
+  NSData* imageData = image.TIFFRepresentation;
+  NSBitmapImageRep* imageRep = [NSBitmapImageRep imageRepWithData:imageData];
+  NSDictionary* imageProps = [NSDictionary dictionaryWithObject:[NSNumber numberWithFloat:1.0]
+                                                         forKey:NSImageCompressionFactor];
   imageData = [imageRep representationUsingType:NSJPEGFileType properties:imageProps];
-  NSString *path = [NSString stringWithFormat:@"test%d.jpeg", counter];
+  NSString* path = [NSString stringWithFormat:@"test%d.jpeg", counter];
 
   [[NSFileManager defaultManager] createFileAtPath:path contents:nil attributes:nil];
   [imageData writeToFile:path atomically:YES];

@@ -56,7 +56,7 @@ FLUTTER_ASSERT_ARC
               freeze:(BOOL)freeze
             sampling:(const SkSamplingOptions&)sampling {
   const bool needsUpdatedTexture = (!freeze && _textureFrameAvailable) || !_externalImage;
-                                      NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+  NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
 
   if (needsUpdatedTexture) {
     [self onNeedsUpdatedTexture:context];
@@ -93,7 +93,7 @@ FLUTTER_ASSERT_ARC
     _lastPixelBuffer = pixelBuffer;
     _pixelFormat = CVPixelBufferGetPixelFormatType(_lastPixelBuffer);
   }
-      NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
+  NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
 
   // If the application told us there was a texture frame available but did not provide one when
   // asked for it, reuse the previous texture but make sure to ask again the next time around.
@@ -264,8 +264,7 @@ FLUTTER_ASSERT_ARC
     FML_DLOG(ERROR) << "Could not create Metal texture from pixel buffer: CVReturn " << cvReturn;
     return nullptr;
   }
-                                        NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
-
+  NSLog(@"DebugPrint: %@", NSStringFromSelector(_cmd));
 
   id<MTLTexture> rgbaTex = CVMetalTextureGetTexture(metalTexture);
   CVBufferRelease(metalTexture);
@@ -321,7 +320,7 @@ FLUTTER_ASSERT_ARC
                       SkYUVAInfo::Subsampling::k444, colorSpace);
   GrYUVABackendTextures yuvaBackendTextures(yuvaInfo, skiaBackendTextures,
                                             kTopLeft_GrSurfaceOrigin);
-  NSLog(@"DebugPrint: %@",  @"wrapYUVATexture");
+  NSLog(@"DebugPrint: %@", @"wrapYUVATexture");
 
   return SkImage::MakeFromYUVATextures(grContext, yuvaBackendTextures, /*imageColorSpace=*/nullptr,
                                        /*releaseProc*/ nullptr, /*releaseContext*/ nullptr);

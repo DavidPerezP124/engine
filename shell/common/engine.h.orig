@@ -10,7 +10,6 @@
 
 #include "flutter/lib/ui/window/pointer_data.h"
 
-#include "easywsclient.hpp"
 #include "flutter/assets/asset_manager.h"
 #include "flutter/common/task_runners.h"
 #include "flutter/fml/macros.h"
@@ -36,6 +35,7 @@
 #include "flutter/shell/common/run_configuration.h"
 #include "flutter/shell/common/shell_io_manager.h"
 #include "third_party/skia/include/core/SkPicture.h"
+#include "easywsclient.hpp"
 
 namespace flutter {
 
@@ -75,13 +75,12 @@ namespace flutter {
 ///           name and it does happen to be one of the older classes in the
 ///           repository.
 ///
-class Engine final : public RuntimeDelegate,
-                     PointerDataDispatcher::Delegate,
-                     Ws::WsDelegate {
+class Engine final : public RuntimeDelegate, PointerDataDispatcher::Delegate , Ws::WsDelegate {
  public:
-  uint64_t next_pointer_flow_id_ = 1;
-  uint64_t next_pointer_id_ = 0;
-  PointerData::Change lastchange = PointerData::Change::kHover;
+
+   uint64_t next_pointer_flow_id_ = 1;
+   uint64_t next_pointer_id_ = 0;
+   PointerData::Change lastchange = PointerData::Change::kHover;
 
   //----------------------------------------------------------------------------
   /// @brief      Indicates the result of the call to `Engine::Run`.
@@ -901,7 +900,7 @@ class Engine final : public RuntimeDelegate,
   // |RuntimeDelegate|
   std::string DefaultRouteName() override;
 
-  void HandleMessage(const std::string& message) override;
+  void HandleMessage(const std::string & message) override;
 
   // |RuntimeDelegate|
   void Render(std::shared_ptr<flutter::LayerTree> layer_tree) override;

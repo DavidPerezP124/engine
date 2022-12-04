@@ -271,8 +271,7 @@ bool RuntimeController::DispatchPointerDataPacket(
     const PointerDataPacket& packet) {
   if (auto* platform_configuration = GetPlatformConfigurationIfAvailable()) {
     TRACE_EVENT0("flutter", "RuntimeController::DispatchPointerDataPacket");
-        fprintf(stderr, "packet size %lu\n", sizeof(packet.data().begin()));
-
+    fprintf(stderr, "packet size %lu\n", sizeof(packet.data().begin()));
     platform_configuration->get_window(0)->DispatchPointerDataPacket(packet);
     return true;
   }

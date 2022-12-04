@@ -56,7 +56,7 @@ void EmbedderExternalTextureMetal::Paint(PaintContext& context,
 sk_sp<SkImage> EmbedderExternalTextureMetal::ResolveTexture(int64_t texture_id,
                                                             GrDirectContext* context,
                                                             const SkISize& size) {
-    NSLog(@"DebugPrint: %@",  @"Paint");
+  NSLog(@"DebugPrint: %@", @"Paint");
   std::unique_ptr<FlutterMetalExternalTexture> texture =
       external_texture_callback_(texture_id, size.width(), size.height());
 

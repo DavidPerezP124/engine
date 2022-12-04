@@ -20,7 +20,6 @@ FLUTTER_ASSERT_ARC
 
 - (instancetype)initWithMTLDevice:(id<MTLDevice>)device
                      commandQueue:(id<MTLCommandQueue>)commandQueue {
-
   self = [super init];
   if (self != nil) {
     _device = device;
