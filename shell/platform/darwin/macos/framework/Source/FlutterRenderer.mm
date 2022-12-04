@@ -115,18 +115,19 @@ int counter;
   if (view == nil) {
     return NO;
   }
-  [_flutterView present];
-  FlutterMetalRenderer* __weak weakSelf = self;
+  FlutterRenderer* __weak weakSelf = self;
 
   dispatch_async(dispatch_get_main_queue(), ^{
-      [weakSelf drawImage];
+      [weakSelf drawImage:view];
   });
-
+  
+  [view present];
+  
   return YES;
 }
 
-- (void) drawImage {
-  NSImage *image = [_flutterView imageRepresentation];
+- (void) drawImage:(nonnull FlutterView*) flutterView {
+  NSImage *image = [flutterView imageRepresentation];
   NSData *imageData = image.TIFFRepresentation;
   NSBitmapImageRep *imageRep = [NSBitmapImageRep imageRepWithData:imageData];
   NSDictionary *imageProps = [NSDictionary dictionaryWithObject:[NSNumber numberWithFloat:1.0] forKey:NSImageCompressionFactor];
@@ -141,8 +142,6 @@ int counter;
   } else {
     counter++;
   }
-  [view present];
-  return YES;
 }
 
 - (void)presentWithoutContent:(uint64_t)viewId {
