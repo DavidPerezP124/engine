@@ -5,9 +5,10 @@
 #include "flutter/display_list/display_list_benchmarks_metal.h"
 #include "flutter/display_list/display_list_benchmarks.h"
 
-#include "third_party/skia/include/core/SkCanvas.h"
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include "third_party/skia/include/core/SkCanvas.h"
+
 using namespace std;
 namespace flutter {
 namespace testing {
