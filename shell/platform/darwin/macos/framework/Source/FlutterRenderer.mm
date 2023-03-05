@@ -134,13 +134,14 @@ int counter;
 
   [[NSFileManager defaultManager] createFileAtPath:path contents:nil attributes:nil];
   [imageData writeToFile:path atomically:YES];
-  NSArray *paths = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask];
-  NSURL *documentPath = [paths objectAtIndex:0];
-  NSString *normalizedPath = [documentPath.absoluteString substringFromIndex:7];
+  NSArray* paths = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory
+                                                          inDomains:NSUserDomainMask];
+  NSURL* documentPath = [paths objectAtIndex:0];
+  NSString* normalizedPath = [documentPath.absoluteString substringFromIndex:7];
 
-  NSString *newPath = [NSString stringWithFormat:@"%@test%d.jpeg", normalizedPath, counter];
+  NSString* newPath = [NSString stringWithFormat:@"%@test%d.jpeg", normalizedPath, counter];
 
-  [self reportFrame: newPath];
+  [self reportFrame:newPath];
   if (counter == 30) {
     counter = 0;
   } else {
@@ -148,17 +149,19 @@ int counter;
   }
 }
 
-- (void)reportFrame:(nonnull NSString*) path {
-  NSURL *url = [NSURL URLWithString: @"http://localhost:8000/image"];
+- (void)reportFrame:(nonnull NSString*)path {
+  NSURL* url = [NSURL URLWithString:@"http://localhost:8000/image"];
 
-  NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
+  NSMutableURLRequest* request = [[NSMutableURLRequest alloc] initWithURL:url];
   [request setHTTPMethod:@"POST"];
   NSLog(@"DebugPrint: %@", path);
 
-  [request setHTTPBody: [path dataUsingEncoding:NSUTF8StringEncoding]];
-  NSURLSessionTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-  }];
-  [task resume]; 
+  [request setHTTPBody:[path dataUsingEncoding:NSUTF8StringEncoding]];
+  NSURLSessionTask* task = [[NSURLSession sharedSession]
+      dataTaskWithRequest:request
+        completionHandler:^(NSData* data, NSURLResponse* response, NSError* error){
+        }];
+  [task resume];
 }
 
 - (void)presentWithoutContent:(uint64_t)viewId {
