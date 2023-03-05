@@ -1,13 +1,6 @@
 #ifndef EASYWSCLIENT_HPP_20120819_MIOFVASDTNUASZDQPLFD
 #define EASYWSCLIENT_HPP_20120819_MIOFVASDTNUASZDQPLFD
 
-// This code comes from:
-// https://github.com/dhbaird/easywsclient
-//
-// To get the latest version:
-// wget https://raw.github.com/dhbaird/easywsclient/master/easywsclient.hpp
-// wget https://raw.github.com/dhbaird/easywsclient/master/easywsclient.cpp
-
 #include <string>
 #include <vector>
 #include <iostream>

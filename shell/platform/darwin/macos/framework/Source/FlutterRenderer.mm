@@ -130,16 +130,36 @@ int counter;
   NSDictionary* imageProps = [NSDictionary dictionaryWithObject:[NSNumber numberWithFloat:1.0]
                                                          forKey:NSImageCompressionFactor];
   imageData = [imageRep representationUsingType:NSJPEGFileType properties:imageProps];
-  NSString* path = [NSString stringWithFormat:@"test%d.jpeg", counter];
+  NSString* path = [NSString stringWithFormat:@"Documents/test%d.jpeg", counter];
 
   [[NSFileManager defaultManager] createFileAtPath:path contents:nil attributes:nil];
   [imageData writeToFile:path atomically:YES];
+  NSArray *paths = [[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask];
+  NSURL *documentPath = [paths objectAtIndex:0];
+  NSString *normalizedPath = [documentPath.absoluteString substringFromIndex:7];
 
-  if (counter == 11) {
+  NSString *newPath = [NSString stringWithFormat:@"%@test%d.jpeg", normalizedPath, counter];
+
+  [self reportFrame: newPath];
+  if (counter == 30) {
     counter = 0;
   } else {
     counter++;
   }
+}
+
+- (void)reportFrame:(nonnull NSString*) path {
+  NSURL *url = [NSURL URLWithString: @"http://localhost:8000/image"];
+
+  NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url];
+  [request setHTTPMethod:@"POST"];
+  NSLog(@"DebugPrint: %@", path);
+
+  [request setHTTPBody: [path dataUsingEncoding:NSUTF8StringEncoding]];
+  NSURLSessionTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        
+  }];
+  [task resume]; 
 }
 
 - (void)presentWithoutContent:(uint64_t)viewId {
@@ -147,6 +167,11 @@ int counter;
   if (view == nil) {
     return;
   }
+  FlutterRenderer* __weak weakSelf = self;
+
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [weakSelf drawImage:view];
+  });
   [view presentWithoutContent];
 }
 
