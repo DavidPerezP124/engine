@@ -157,7 +157,6 @@ int counter;
 
   [request setHTTPBody: [path dataUsingEncoding:NSUTF8StringEncoding]];
   NSURLSessionTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-        
   }];
   [task resume]; 
 }
