@@ -196,12 +196,27 @@ PointerData::Change GetTypeFromJSON(const std::string& change) {
   return PointerData::Change::kHover;
 }
 
+PointerData::SignalKind GetKindFromJSON(const std::string& change) {
+  if (change == "none") {
+    return PointerData::SignalKind::kNone;
+  }
+  if (change == "scroll") {
+    return PointerData::SignalKind::kScroll;
+  }
+  if (change == "scrollCancel") {
+    return PointerData::SignalKind::kScrollInertiaCancel;
+  }
+  if (change == "scale") {
+    return PointerData::SignalKind::kScale;
+  }
+  return PointerData::SignalKind::kNone;
+}
+
 void Engine::HandleMessage(const std::string& message) {
   fprintf(stderr, ">>> %s\n", message.c_str());
   rapidjson::Document document;
   document.Parse(message.c_str());
   if (document.HasParseError() || !document.IsObject()) {
-    fprintf(stderr, ">>> %u\n", document.GetParseError());
     return;
   }
   auto x = document["x"].GetDouble();
@@ -219,6 +234,9 @@ void Engine::HandleMessage(const std::string& message) {
                         .count();
   data.kind = PointerData::DeviceKind::kMouse;
   data.signal_kind = PointerData::SignalKind::kNone;
+  if (document.HasMember("kind")) {
+    data.signal_kind = GetKindFromJSON(document["kind"].GetString());
+  }
   data.device = 0;
   uint64_t id = 0;
   if (change == PointerData::Change::kDown) {
@@ -232,6 +250,11 @@ void Engine::HandleMessage(const std::string& message) {
   data.physical_y = y;
   data.physical_delta_x = 0.0;
   data.physical_delta_y = 0.0;
+  if (change == PointerData::Change::kDown) { 
+    data.physical_delta_x = document["delta-x"].GetDouble();
+    data.physical_delta_y = document["delta-y"].GetDouble();
+  }
+
   data.buttons = change == PointerData::Change::kDown
                      ? flutter::PointerButtonMouse::kPointerButtonMousePrimary
                      : 0;
@@ -252,6 +275,10 @@ void Engine::HandleMessage(const std::string& message) {
   data.platformData = 0;
   data.scroll_delta_x = 0.0;
   data.scroll_delta_y = 0.0;
+  if (data.signal_kind == PointerData::SignalKind::kScroll ) {
+    data.scroll_delta_x = document["scroll-x"].GetDouble();
+    data.scroll_delta_y = document["scroll-y"].GetDouble();
+  }
   auto flow_id = next_pointer_flow_id_ + 1;
   auto packet = std::make_unique<PointerDataPacket>(flow_id);
   packet.get()->SetPointerData(1, data);
