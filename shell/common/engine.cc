@@ -250,7 +250,7 @@ void Engine::HandleMessage(const std::string& message) {
   data.physical_y = y;
   data.physical_delta_x = 0.0;
   data.physical_delta_y = 0.0;
-  if (change == PointerData::Change::kDown) { 
+  if (change == PointerData::Change::kDown) {
     data.physical_delta_x = document["delta-x"].GetDouble();
     data.physical_delta_y = document["delta-y"].GetDouble();
   }
@@ -275,7 +275,7 @@ void Engine::HandleMessage(const std::string& message) {
   data.platformData = 0;
   data.scroll_delta_x = 0.0;
   data.scroll_delta_y = 0.0;
-  if (data.signal_kind == PointerData::SignalKind::kScroll ) {
+  if (data.signal_kind == PointerData::SignalKind::kScroll) {
     data.scroll_delta_x = document["scroll-x"].GetDouble();
     data.scroll_delta_y = document["scroll-y"].GetDouble();
   }
